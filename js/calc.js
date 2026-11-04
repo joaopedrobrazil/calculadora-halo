@@ -6,7 +6,7 @@
  *   X = D × sen(direção)     (leste +)
  *   Y = D × cos(direção)     (norte +)
  * A direção é a de onde o vento VEM, então o vetor aponta contra o vento,
- * que é para onde o PS deve ser deslocado a partir do PID.
+ * que é para onde o PS deve ser deslocado a partir do alvo.
  */
 (function (root) {
   'use strict';
@@ -25,7 +25,7 @@
   }
 
   /**
-   * p: { exit, open, pat (ft), kff, kva, ias (kt), ftSec (s), hdgMode: 'auto'|'manual', hdg (°) }
+   * p: { exit, open, pat (ft), kff, kva, ias (kt), ftSec (s), hdgMode: 'nariz'|'cauda'|'manual', hdg (°) }
    * layers: [{ alt (ft), dir (°, de onde vem), spd (kt) }]
    */
   function compute(p, layers) {
@@ -90,9 +90,12 @@
     var hdg;
     if (p.hdgMode === 'manual') {
       hdg = p.hdg % 360;
-    } else {
-      // Automática: eixo passando pelo ponto de saída e apontando para o PID
+    } else if (p.hdgMode === 'cauda') {
+      // Lançamento de cauda: a aeronave vem do lado do vento e voa em direção ao alvo
       hdg = Math.hypot(ex, ey) > 1 ? bearing(-ex, -ey) : 0;
+    } else {
+      // Lançamento de nariz (padrão): a aeronave passa sobre o alvo voando contra o vento
+      hdg = Math.hypot(ex, ey) > 1 ? bearing(ex, ey) : 0;
     }
 
     var tas = tasFromIas(p.ias, p.exit);

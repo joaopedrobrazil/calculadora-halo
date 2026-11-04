@@ -175,6 +175,11 @@ details.calc[open] summary { margin-bottom: 10px; }
 .mk-me { width: 16px; height: 16px; border-radius: 50%; background: #1d6fe0; border: 3px solid #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / .3); }
 .mk-label { font: 700 12px var(--body); color: #fff; background: rgb(20 26 22 / .82); padding: 2px 6px; border-radius: 3px; white-space: nowrap; }
 .leaflet-container { font-family: var(--body); }
+.mk-ring { display: block; text-align: center; font: 700 11px var(--body); color: #fff; text-shadow: 0 0 3px #000, 0 0 2px #000; }
+.mk-leg { display: inline-flex; align-items: center; gap: 4px; font: 700 11px var(--body); color: #1d1a0c; background: #ffd24a; padding: 2px 7px; border-radius: 3px; white-space: nowrap; box-shadow: 0 1px 3px rgb(0 0 0 / .4); }
+.mk-leg .arr { display: inline-block; font-size: 10px; }
+.check { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); }
 
 @media (max-width: 860px) {
   .layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: 46dvh minmax(0, 1fr); }

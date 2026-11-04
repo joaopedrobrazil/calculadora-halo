@@ -29,7 +29,7 @@
     <div class="mapwrap">
       <div id="map" aria-label="Mapa"></div>
       <div class="map-tools">
-        <button class="tool" id="markBtn" type="button">Marcar PID no mapa</button>
+        <button class="tool" id="markBtn" type="button">Marcar alvo no mapa</button>
         <button class="tool" id="fitBtn" type="button">Enquadrar</button>
       </div>
       <div class="map-hint" id="mapHint" hidden></div>
@@ -38,11 +38,11 @@
     <section class="sheet">
       <div class="summary" id="summary" aria-live="polite">
         <div class="sum-main">
-          <div class="kv"><span class="lbl">PS a partir do PID</span><span class="big" id="sDist">–</span></div>
+          <div class="kv"><span class="lbl">PS a partir do alvo</span><span class="big" id="sDist">–</span></div>
           <div class="kv"><span class="lbl">Rumo</span><span class="big" id="sBrg">–</span></div>
           <div class="kv"><span class="lbl">Proa de lançamento</span><span class="mid" id="sHdg">–</span></div>
         </div>
-        <div class="sum-coords" id="sCoords">Marque o PID para ver as coordenadas do PS.</div>
+        <div class="sum-coords" id="sCoords">Marque o alvo para ver as coordenadas do PS.</div>
         <div id="msgs"></div>
       </div>
 
@@ -79,13 +79,13 @@ Distância = √(ΣX² + ΣY²)     Rumo = atan2(ΣX, ΣY)</pre>
       <!-- SALTO -->
       <div class="pane" id="pane-salto" role="tabpanel" aria-labelledby="tab-salto" hidden>
         <div class="group">
-          <h2>Ponto de Impacto Desejado (PID)</h2>
+          <h2>Alvo</h2>
           <div class="fields">
             <div class="field"><label for="pidLat">Latitude</label><input id="pidLat" type="number" step="0.00001" inputmode="decimal" placeholder="-22.87500"></div>
             <div class="field"><label for="pidLon">Longitude</label><input id="pidLon" type="number" step="0.00001" inputmode="decimal" placeholder="-43.38000"></div>
           </div>
           <div class="row-actions">
-            <button class="btn" id="pidHere" type="button">PID na minha posição</button>
+            <button class="btn" id="pidHere" type="button">Alvo na minha posição</button>
             <button class="btn" id="pidMark2" type="button">Marcar no mapa</button>
           </div>
         </div>
@@ -114,13 +114,30 @@ Distância = √(ΣX² + ΣY²)     Rumo = atan2(ΣX, ΣY)</pre>
             <div class="field"><label for="ftSec">Projeção à frente (s)</label><input id="ftSec" type="number" step="0.5" inputmode="decimal"><small id="ftInfo">–</small></div>
             <div class="field"><label for="hdgMode">Proa de lançamento</label>
               <select id="hdgMode">
-                <option value="auto">Automática (eixo para o PID)</option>
+                <option value="nariz">De nariz (contra o vento)</option>
+                <option value="cauda">De cauda (a favor do vento)</option>
                 <option value="manual">Manual</option>
               </select>
             </div>
             <div class="field" id="hdgField"><label for="hdg">Proa manual (°)</label><input id="hdg" type="number" step="1" min="0" max="360" inputmode="numeric"></div>
           </div>
+          <p class="note">De nariz: a aeronave passa sobre o alvo voando contra o vento e lança no PS. De cauda: vem do lado do vento em direção ao alvo.</p>
           <p class="note">A projeção à frente usa a velocidade verdadeira na altitude de saída (+2% por 1.000 ft) multiplicada pelo tempo informado. Ajuste o tempo pela tabela da aeronave.</p>
+        </div>
+
+        <div class="group">
+          <h2>Circuito da aeronave</h2>
+          <div class="fields">
+            <div class="field"><label for="circMin">Duração do circuito (min)</label><input id="circMin" type="number" step="0.5" min="1" inputmode="decimal"></div>
+            <div class="field"><label for="circSide">Curvas</label>
+              <select id="circSide">
+                <option value="E">Pela esquerda</option>
+                <option value="D">Pela direita</option>
+              </select>
+            </div>
+          </div>
+          <label class="check"><input type="checkbox" id="circShow"> Mostrar circuito no mapa</label>
+          <p class="note">Tracejado previsto: través, perna do vento, base e final até o PS, na velocidade verdadeira de lançamento e sem correção de vento.</p>
         </div>
 
         <div class="row-actions">

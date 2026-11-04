@@ -5,9 +5,9 @@
   var $ = function (id) { return document.getElementById(id); };
   var STORE = 'calculadora-halo-v1';
 
-  var DEFAULT_PARAMS = { exit: 12000, open: 4000, pat: 1000, kff: 3, kva: 25, ias: 120, ftSec: 3, hdgMode: 'auto', hdg: 0 };
+  var DEFAULT_PARAMS = { exit: 12000, open: 4000, pat: 1000, kff: 3, kva: 25, ias: 120, ftSec: 3, hdgMode: 'nariz', hdg: 0, circMin: 4.5, circSide: 'E', circShow: true };
   var DEFAULT_LAYERS = [11000, 9000, 7000, 5000, 3000, 1000].map(function (a) { return { alt: a, dir: NaN, spd: NaN }; });
-  var PARAM_IDS = ['exit', 'open', 'pat', 'kff', 'kva', 'ias', 'ftSec', 'hdg'];
+  var PARAM_IDS = ['exit', 'open', 'pat', 'kff', 'kva', 'ias', 'ftSec', 'hdg', 'circMin'];
 
   // ---------- estado ----------
   function freshState() {
@@ -19,7 +19,7 @@
       if (s && s.params && Array.isArray(s.layers)) {
         return {
           pid: s.pid && isFinite(s.pid.lat) && isFinite(s.pid.lon) ? s.pid : null,
-          params: Object.assign({}, DEFAULT_PARAMS, s.params),
+          params: (function (pp) { if (['nariz', 'cauda', 'manual'].indexOf(pp.hdgMode) === -1) pp.hdgMode = 'nariz'; return pp; })(Object.assign({}, DEFAULT_PARAMS, s.params)),
           layers: s.layers.map(function (L) { return { alt: num(L.alt), dir: num(L.dir), spd: num(L.spd) }; }),
           mapa: s.mapa === 'osm' ? 'osm' : 'sat',
           nomes: s.nomes !== false
@@ -74,9 +74,9 @@
   function setMarkMode(on) {
     markMode = on;
     $('markBtn').setAttribute('aria-pressed', on ? 'true' : 'false');
-    $('markBtn').textContent = on ? 'Toque no mapa…' : (st.pid ? 'Mover PID' : 'Marcar PID no mapa');
+    $('markBtn').textContent = on ? 'Toque no mapa…' : (st.pid ? 'Mover alvo' : 'Marcar alvo no mapa');
     map.getContainer().style.cursor = on ? 'crosshair' : '';
-    hint(on ? 'Toque no ponto de impacto desejado.' : null);
+    hint(on ? 'Toque no ponto onde quer pousar.' : null);
   }
   function hint(t) { var h = $('mapHint'); if (t) { h.textContent = t; h.hidden = false; } else { h.hidden = true; } }
 
@@ -98,7 +98,7 @@
   function syncPidInputs() {
     $('pidLat').value = st.pid ? st.pid.lat.toFixed(6) : '';
     $('pidLon').value = st.pid ? st.pid.lon.toFixed(6) : '';
-    $('markBtn').textContent = st.pid ? 'Mover PID' : 'Marcar PID no mapa';
+    $('markBtn').textContent = st.pid ? 'Mover alvo' : 'Marcar alvo no mapa';
   }
 
   function fit() {
@@ -118,18 +118,24 @@
     }
     var p0 = st.pid;
     if (!pidMarker) {
-      pidMarker = L.marker([p0.lat, p0.lon], { icon: icon('mk-pid', 'PID'), draggable: true, zIndexOffset: 1000, keyboard: true, title: 'PID' }).addTo(map);
+      pidMarker = L.marker([p0.lat, p0.lon], { icon: icon('mk-pid', 'ALVO'), draggable: true, zIndexOffset: 1000, keyboard: true, title: 'Alvo' }).addTo(map);
       pidMarker.on('dragend', function () { var ll = pidMarker.getLatLng(); setPid(ll.lat, ll.lng, true); });
     } else {
       pidMarker.setLatLng([p0.lat, p0.lon]);
     }
+    var ll = function (x, y) { return H.offset(p0.lat, p0.lon, x, y); };
+
+    // circunferências de 50, 100 e 200 m em volta do alvo
+    [50, 100, 200].forEach(function (r) {
+      L.circle([p0.lat, p0.lon], { radius: r, color: '#ffffff', weight: 1.5, opacity: 0.9, fill: false, dashArray: '4 4', interactive: false }).addTo(drawLayer);
+      L.marker(ll(r * 0.7071, r * 0.7071), { icon: L.divIcon({ className: '', html: '<span class="mk-ring">' + r + ' m</span>', iconSize: [40, 14], iconAnchor: [20, 7] }), interactive: false, keyboard: false }).addTo(drawLayer);
+    });
+
     if (!result || result.errors.length) return;
 
     var css = getComputedStyle(document.documentElement);
     var col = { QL: css.getPropertyValue('--ff').trim(), VA: css.getPropertyValue('--va').trim(), FT: css.getPropertyValue('--ftc').trim(), PS: '#f0773a' };
-    var ll = function (x, y) { return H.offset(p0.lat, p0.lon, x, y); };
-
-    // polígono de vetores: PID -> camadas -> fim da projeção à frente -> PS
+    // polígono de vetores: alvo -> camadas -> fim da projeção à frente -> PS
     var cx = 0, cy = 0;
     result.rows.forEach(function (q) {
       var a = ll(cx, cy); cx += q.x; cy += q.y; var b = ll(cx, cy);
@@ -141,13 +147,49 @@
     L.circleMarker(exitLL, { radius: 5, color: '#fff', weight: 2, fillColor: '#18211c', fillOpacity: 1 }).addTo(drawLayer)
       .bindTooltip('Fim da projeção à frente');
 
-    // eixo de aproximação
     var h = result.hdg * Math.PI / 180, ux = Math.sin(h), uy = Math.cos(h);
-    var back = ll(result.X - ux * 5000, result.Y - uy * 5000);
-    var fwd = ll(result.X + ux * 2000, result.Y + uy * 2000);
-    L.polyline([back, fwd], { color: col.PS, weight: 2, opacity: 0.8, dashArray: '2 8' }).addTo(drawLayer);
+    var circ = circuit();
+    if (circ) {
+      // circuito previsto da aeronave: PS -> través -> perna do vento -> base -> final -> PS
+      L.polyline(circ.pts.map(function (q) { return ll(q.x, q.y); }), { color: '#ffd24a', weight: 2.5, opacity: 0.95, dashArray: '10 8', interactive: false }).addTo(drawLayer);
+      circ.legs.forEach(function (g) {
+        var html = '<span class="mk-leg"><span class="arr" style="transform:rotate(' + (g.hdg - 90).toFixed(0) + 'deg)">➤</span>' + g.name + (g.sec ? ' · ' + mmss(g.sec) : '') + '</span>';
+        L.marker(ll(g.mid.x, g.mid.y), { icon: L.divIcon({ className: '', html: html, iconSize: [130, 20], iconAnchor: [65, 10] }), interactive: false, keyboard: false }).addTo(drawLayer);
+      });
+    } else {
+      // só o eixo de aproximação
+      var back = ll(result.X - ux * 5000, result.Y - uy * 5000);
+      var fwd = ll(result.X + ux * 2000, result.Y + uy * 2000);
+      L.polyline([back, fwd], { color: col.PS, weight: 2, opacity: 0.8, dashArray: '2 8' }).addTo(drawLayer);
+    }
 
     L.marker(plLL, { icon: icon('mk-pl', 'PS ' + deg3(result.hdg)), zIndexOffset: 900, interactive: false }).addTo(drawLayer);
+  }
+
+  // Circuito retangular de duração fixa na velocidade verdadeira de lançamento.
+  // Comprimento L e largura 0,25 L; o PS fica a 70% da reta final, sobrando 30% depois dele.
+  function circuit() {
+    var p = st.params;
+    if (!p.circShow || !(p.circMin > 0) || !result || result.errors.length) return null;
+    var v = result.tas * 0.514444;
+    if (!(v > 0)) return null;
+    var total = v * p.circMin * 60, Lr = total / 2.5, W = 0.25 * Lr;
+    var h = result.hdg * Math.PI / 180, u = { x: Math.sin(h), y: Math.cos(h) };
+    var n = p.circSide === 'D' ? { x: u.y, y: -u.x } : { x: -u.y, y: u.x };
+    var P = { x: result.X, y: result.Y };
+    var add = function (a, b, k) { return { x: a.x + b.x * k, y: a.y + b.y * k }; };
+    var A = add(P, u, 0.3 * Lr), B = add(A, n, W), C = add(B, u, -Lr), D = add(C, n, -W);
+    var mid = function (a, b) { return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; };
+    var hd = function (a, b) { return H.bearing(b.x - a.x, b.y - a.y); };
+    return {
+      pts: [P, A, B, C, D, P],
+      legs: [
+        { name: 'Través', mid: mid(A, B), hdg: hd(A, B), sec: W / v },
+        { name: 'Perna do vento', mid: mid(B, C), hdg: hd(B, C), sec: Lr / v },
+        { name: 'Base', mid: mid(C, D), hdg: hd(C, D), sec: W / v },
+        { name: 'Final', mid: mid(D, P), hdg: hd(D, P), sec: 0.7 * Lr / v }
+      ]
+    };
   }
 
   // ---------- ventos ----------
@@ -201,6 +243,8 @@
     PARAM_IDS.forEach(function (id) { $(id).value = isFinite(st.params[id]) ? st.params[id] : ''; });
     $('hdgMode').value = st.params.hdgMode;
     $('hdgField').hidden = st.params.hdgMode !== 'manual';
+    $('circSide').value = st.params.circSide;
+    $('circShow').checked = !!st.params.circShow;
     syncPidInputs();
   }
   PARAM_IDS.forEach(function (id) {
@@ -211,6 +255,8 @@
     if (st.params.hdgMode === 'manual' && !isFinite(st.params.hdg) && result && !result.errors.length) st.params.hdg = Math.round(result.hdg);
     save(); renderParams(); update();
   });
+  $('circSide').addEventListener('change', function () { st.params.circSide = $('circSide').value; save(); update(); });
+  $('circShow').addEventListener('change', function () { st.params.circShow = $('circShow').checked; save(); update(); });
   $('resetParams').addEventListener('click', function () {
     st.params = Object.assign({}, DEFAULT_PARAMS);
     save(); renderParams(); update();
@@ -228,10 +274,10 @@
     if (!('geolocation' in navigator)) { flash('Este aparelho não oferece localização.'); return; }
     $('pidHere').textContent = 'Obtendo posição…';
     navigator.geolocation.getCurrentPosition(function (p) {
-      $('pidHere').textContent = 'PID na minha posição';
+      $('pidHere').textContent = 'Alvo na minha posição';
       setPid(p.coords.latitude, p.coords.longitude);
     }, function (err) {
-      $('pidHere').textContent = 'PID na minha posição';
+      $('pidHere').textContent = 'Alvo na minha posição';
       flash(gpsError(err));
     }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
   });
@@ -271,7 +317,7 @@
 
     if (result.errors.length) {
       $('sDist').textContent = '–'; $('sBrg').textContent = '–'; $('sHdg').textContent = '–';
-      $('sCoords').textContent = st.pid ? 'Coordenadas do PS aparecem quando o cálculo estiver completo.' : 'Marque o PID para ver as coordenadas do PS.';
+      $('sCoords').textContent = st.pid ? 'Coordenadas do PS aparecem quando o cálculo estiver completo.' : 'Marque o alvo para ver as coordenadas do PS.';
       $('calcRows').innerHTML = '';
     } else {
       $('sDist').textContent = fmt(result.dist) + ' m';
@@ -287,7 +333,7 @@
   function renderCoords() {
     var box = $('sCoords');
     box.innerHTML = '';
-    if (!st.pid) { box.textContent = 'Marque o PID para ver as coordenadas do PS.'; return; }
+    if (!st.pid) { box.textContent = 'Marque o alvo para ver as coordenadas do PS.'; return; }
     var pl = H.offset(st.pid.lat, st.pid.lon, result.X, result.Y);
     var u = H.utm(pl[0], pl[1]);
     var lines = [
@@ -403,7 +449,7 @@
     if (!me || !st.pid || !result || result.errors.length) {
       box.setAttribute('data-state', 'idle');
       set('nEta', '–:–'); set('nAlong', '–'); set('nCross', '–'); set('nBrg', '–');
-      set('nState', !st.pid ? 'Marque o PID na aba Salto ou no mapa.'
+      set('nState', !st.pid ? 'Marque o alvo na aba Salto ou no mapa.'
         : (!result || result.errors.length) ? 'Complete os ventos para calcular o PS.'
         : watchId === null ? 'Ligue o GPS para navegar até o PS.' : 'Aguardando sinal do GPS…');
       return;
@@ -451,7 +497,7 @@
   update();
   if (st.pid) map.setView([st.pid.lat, st.pid.lon], 14);
   if (st.pid) setTimeout(fit, 50);
-  else hint('Toque em "Marcar PID no mapa" e depois no ponto de impacto desejado.');
+  else hint('Toque em "Marcar alvo no mapa" e depois no ponto onde quer pousar.');
 
   window.__halo = { state: function () { return st; }, result: function () { return result; } };
 })();
