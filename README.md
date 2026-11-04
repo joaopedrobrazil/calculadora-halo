@@ -29,9 +29,12 @@ PS = (ΣX, ΣY) − projeção à frente ao longo da proa
 - **Queda livre** (K padrão 3) vai da saída à abertura; **velame aberto** (K padrão 25) vai da abertura ao início do tráfego (padrão 1.000 ft).
 - Cada leitura de vento vale até a metade da distância às leituras vizinhas (com leituras a cada 2.000 ft, cada uma cobre ±1.000 ft).
 - **Projeção à frente** = velocidade verdadeira na altitude de saída (IAS + 2% por 1.000 ft) × tempo informado (padrão 3 s; ajuste pela tabela da aeronave).
-- **Proa de lançamento:** *de nariz* (padrão), a aeronave passa sobre o alvo voando contra o vento e lança no PS; *de cauda*, vem do lado do vento em direção ao alvo; ou proa manual.
+- **Tipo de lançamento** (escolha do MSL, no topo do painel):
+  - *De nariz* (padrão): a aeronave passa sobre o alvo voando contra o vento; a projeção à frente leva o paraquedista contra o vento e o PS fica mais perto do alvo.
+  - *De cauda*: a aeronave vem a favor do vento em direção ao alvo; a projeção leva o paraquedista para o alvo, então a saída é antecipada.
+  - *Boca do cone*: proa perpendicular à resultante do vento, com o vento entrando pela esquerda ou pela direita da aeronave; a projeção desloca o PS para o lado.
 - **Alvo:** circunferências de 50, 100 e 200 m de raio.
-- **Circuito da aeronave:** tracejado previsto (través, perna do vento, base e final até o PS) com duração configurável (padrão 4,5 min), curvas pela esquerda ou direita. Retângulo com largura de 1/4 do comprimento, na velocidade verdadeira de lançamento e sem correção de vento; o PS fica a 70% da reta final.
+- **Circuito da aeronave:** tracejado previsto (reta após o PS, través, perna do vento, base e final até o PS), definido por tempos: final de 2 min, través e base de 25 s cada, 15 s após o PS (configuráveis). Na velocidade verdadeira de lançamento e sem correção de vento.
 - Coordenadas do PS em graus decimais, graus-minutos-segundos e UTM (WGS 84 ≈ SIRGAS 2000).
 
 ## Estrutura
