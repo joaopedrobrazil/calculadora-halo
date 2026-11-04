@@ -34,7 +34,7 @@ PS = (ΣX, ΣY) − projeção à frente ao longo da proa
   - *De cauda*: a aeronave vem a favor do vento em direção ao alvo; a projeção leva o paraquedista para o alvo, então a saída é antecipada.
   - *Boca do cone*: proa perpendicular à resultante do vento, com o vento entrando pela esquerda ou pela direita da aeronave; a projeção desloca o PS para o lado.
 - **Alvo:** circunferências de 50, 100 e 200 m de raio.
-- **Circuito da aeronave:** tracejado previsto (reta após o PS, través, perna do vento, base e final até o PS), definido por tempos: final de 2 min, través e base de 25 s cada, 15 s após o PS (configuráveis). Na velocidade verdadeira de lançamento e sem correção de vento.
+- **Circuito da aeronave:** tracejado previsto com o sentido de voo e o tempo de cada perna, definido por tempos: final de 2 min, través e base de 25 s cada, 15 s após o PS (configuráveis). Na velocidade verdadeira de lançamento e sem correção de vento.
 - Coordenadas do PS em graus decimais, graus-minutos-segundos e UTM (WGS 84 ≈ SIRGAS 2000).
 
 ## Estrutura

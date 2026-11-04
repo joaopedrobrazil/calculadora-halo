@@ -159,8 +159,8 @@
       // circuito previsto da aeronave: PS -> través -> perna do vento -> base -> final -> PS
       L.polyline(circ.pts.map(function (q) { return ll(q.x, q.y); }), { color: '#ffd24a', weight: 2.5, opacity: 0.95, dashArray: '10 8', interactive: false }).addTo(drawLayer);
       circ.legs.forEach(function (g) {
-        var html = '<span class="mk-leg"><span class="arr" style="transform:rotate(' + (g.hdg - 90).toFixed(0) + 'deg)">➤</span>' + g.name + (g.sec ? ' · ' + mmss(g.sec) : '') + '</span>';
-        L.marker(ll(g.mid.x, g.mid.y), { icon: L.divIcon({ className: '', html: html, iconSize: [130, 20], iconAnchor: [65, 10] }), interactive: false, keyboard: false }).addTo(drawLayer);
+        var html = '<span class="mk-leg"><span class="arr" style="transform:rotate(' + (g.hdg - 90).toFixed(0) + 'deg)">➤</span>' + mmss(g.sec) + '</span>';
+        L.marker(ll(g.mid.x, g.mid.y), { icon: L.divIcon({ className: '', html: html, iconSize: [60, 20], iconAnchor: [30, 10] }), interactive: false, keyboard: false }).addTo(drawLayer);
       });
     } else {
       // só o eixo de aproximação
