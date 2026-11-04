@@ -5,9 +5,13 @@
   var $ = function (id) { return document.getElementById(id); };
   var STORE = 'calculadora-halo-v1';
 
-  var DEFAULT_PARAMS = { exit: 12000, open: 4000, pat: 1000, kff: 3, kva: 25, ias: 120, ftSec: 3, hdgMode: 'nariz', coneSide: 'E', circFinal: 2, circTurn: 25, circAfter: 15, circSide: 'E', circShow: true };
+  var DEFAULT_PARAMS = { exit: 12000, open: 4000, pat: 1000, kff: 3, kva: 25, ias: 120, ftSec: 3, hdgMode: 'nariz', coneSide: 'E', circFinal: 2, circTurn: 25, circAfter: 15, circSide: 'E', circShow: true, decl: NaN, declSide: 'W', exact: false };
   var DEFAULT_LAYERS = [11000, 9000, 7000, 5000, 3000, 1000].map(function (a) { return { alt: a, dir: NaN, spd: NaN }; });
-  var PARAM_IDS = ['exit', 'open', 'pat', 'kff', 'kva', 'ias', 'ftSec', 'circFinal', 'circTurn', 'circAfter'];
+  var PARAM_IDS = ['exit', 'open', 'pat', 'kff', 'kva', 'ias', 'ftSec', 'circFinal', 'circTurn', 'circAfter', 'decl'];
+  var MODE_NAME = { nariz: 'Nariz', cauda: 'Cauda', cone: 'Boca do cone' };
+  var MODE_FALA = { nariz: 'de nariz', cauda: 'de cauda', cone: 'boca do cone' };
+  var VARIANTS = [{ mode: 'nariz', side: 'E' }, { mode: 'cauda', side: 'E' }, { mode: 'cone', side: 'E' }, { mode: 'cone', side: 'D' }];
+  var SECS = ['modo', 'ventos', 'salto', 'nav'];
   var MODES = ['nariz', 'cauda', 'cone'];
   var MODE_NOTES = {
     nariz: 'A aeronave passa sobre o alvo voando contra o vento. A projeção à frente leva o paraquedista contra o vento, então o PS fica mais perto do alvo.',
@@ -17,7 +21,7 @@
 
   // ---------- estado ----------
   function freshState() {
-    return { pid: null, params: Object.assign({}, DEFAULT_PARAMS), layers: DEFAULT_LAYERS.map(function (o) { return Object.assign({}, o); }), mapa: 'sat', nomes: true };
+    return { pid: null, params: Object.assign({}, DEFAULT_PARAMS), layers: DEFAULT_LAYERS.map(function (o) { return Object.assign({}, o); }), mapa: 'sat', nomes: true, open: { ventos: true } };
   }
   function load() {
     try {
@@ -25,10 +29,18 @@
       if (s && s.params && Array.isArray(s.layers)) {
         return {
           pid: s.pid && isFinite(s.pid.lat) && isFinite(s.pid.lon) ? s.pid : null,
-          params: (function (pp) { if (['nariz', 'cauda', 'cone'].indexOf(pp.hdgMode) === -1) pp.hdgMode = 'nariz'; if (pp.coneSide !== 'D') pp.coneSide = 'E'; return pp; })(Object.assign({}, DEFAULT_PARAMS, s.params)),
+          params: (function (pp) {
+            if (['nariz', 'cauda', 'cone'].indexOf(pp.hdgMode) === -1) pp.hdgMode = 'nariz';
+            if (pp.coneSide !== 'D') pp.coneSide = 'E';
+            pp.decl = num(pp.decl);   // JSON guarda NaN como null
+            if (pp.declSide !== 'E') pp.declSide = 'W';
+            pp.exact = !!pp.exact;
+            return pp;
+          })(Object.assign({}, DEFAULT_PARAMS, s.params)),
           layers: s.layers.map(function (L) { return { alt: num(L.alt), dir: num(L.dir), spd: num(L.spd) }; }),
           mapa: s.mapa === 'osm' ? 'osm' : 'sat',
-          nomes: s.nomes !== false
+          nomes: s.nomes !== false,
+          open: s.open && typeof s.open === 'object' ? s.open : { ventos: true }
         };
       }
     } catch (e) { /* sem armazenamento */ }
@@ -46,6 +58,16 @@
   var fmt = function (n, d) { return n.toLocaleString('pt-BR', { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }); };
   var deg3 = function (b) { return String(Math.round(b) % 360).padStart(3, '0') + '°'; };
   var mmss = function (s) { s = Math.max(0, Math.round(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+
+  // ---------- norte magnético ----------
+  // Declinação com sinal: + leste, − oeste. Sem declinação informada, tudo sai em verdadeiro (V).
+  function hasDecl() { return isFinite(st.params.decl); }
+  function declSigned() { return hasDecl() ? (st.params.declSide === 'E' ? st.params.decl : -st.params.decl) : NaN; }
+  function calcParams(over) { return Object.assign({}, st.params, { decl: declSigned(), round10: !st.params.exact }, over || {}); }
+  var mag = function (t) { return H.norm(t - (hasDecl() ? declSigned() : 0)); };
+  var degM = function (t) { return deg3(mag(t)) + (hasDecl() ? ' M' : ' V'); };
+  var fala3 = function (t) { return String(Math.round(mag(t)) % 360).padStart(3, '0'); };
+  var m10 = function (d) { return fmt(Math.round(Math.abs(d) / 10) * 10); };
 
   // ---------- mapa ----------
   var map = L.map('map', { zoomControl: true }).setView([-15.8, -47.9], 4);
@@ -180,7 +202,7 @@
       L.polyline([back, fwd], { color: col.PS, weight: 2, opacity: 0.8, dashArray: '2 8' }).addTo(drawLayer);
     }
 
-    L.marker(plLL, { icon: icon('mk-pl', 'PS ' + deg3(result.hdg)), zIndexOffset: 900, interactive: false }).addTo(drawLayer);
+    L.marker(plLL, { icon: icon('mk-pl', 'PS ' + degM(result.hdg)), zIndexOffset: 900, interactive: false }).addTo(drawLayer);
   }
 
   // Circuito retangular na velocidade verdadeira de lançamento:
@@ -266,8 +288,12 @@
     $('modeNote').textContent = MODE_NOTES[st.params.hdgMode];
     $('circSide').value = st.params.circSide;
     $('circShow').checked = !!st.params.circShow;
+    $('declSide').value = st.params.declSide;
+    $('exact').checked = !!st.params.exact;
     syncPidInputs();
   }
+  $('declSide').addEventListener('change', function () { st.params.declSide = $('declSide').value; save(); update(); });
+  $('exact').addEventListener('change', function () { st.params.exact = $('exact').checked; save(); update(); });
   PARAM_IDS.forEach(function (id) {
     $(id).addEventListener('input', function () { st.params[id] = num($(id).value); save(); update(); });
   });
@@ -302,16 +328,83 @@
     }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
   });
 
-  // ---------- abas ----------
-  var tabs = ['ventos', 'salto', 'nav'];
-  tabs.forEach(function (t) {
-    $('tab-' + t).addEventListener('click', function () {
-      tabs.forEach(function (o) {
-        $('tab-' + o).setAttribute('aria-selected', o === t ? 'true' : 'false');
-        $('pane-' + o).hidden = o !== t;
-      });
+  // ---------- seções recolhíveis ----------
+  // Mais de uma pode ficar aberta; o app lembra o que estava aberto.
+  SECS.forEach(function (k) {
+    var d = $('sec-' + k);
+    d.open = !!st.open[k];
+    d.addEventListener('toggle', function () {
+      st.open[k] = d.open;
+      save();
+      if (d.open && window.HALO_SHEET && HALO_SHEET.pos() === 'peek') HALO_SHEET.toPos('half');
     });
   });
+
+  // ---------- pedida ao piloto ----------
+  // Onde fica o PS em relação ao alvo, medido ao longo do eixo de entrada.
+  // O lado aparece sempre na boca do cone e, em nariz e cauda, só quando passa de 50 m.
+  function psText(r, mode, long) {
+    var u = long ? ' metros' : ' m', parts = [];
+    if (Math.abs(r.along) < 10) parts.push('PS no través do alvo');
+    else parts.push('PS ' + m10(r.along) + u + (r.along > 0 ? ' depois do alvo' : ' antes do alvo'));
+    if (mode === 'cone' || Math.abs(r.side) > 50) parts.push(m10(r.side) + u + ' à ' + (r.side > 0 ? 'direita' : 'esquerda'));
+    return parts.join(long ? ' e ' : ' · ');
+  }
+  function isSel(v) { return v.mode === st.params.hdgMode && (v.mode !== 'cone' || v.side === st.params.coneSide); }
+
+  function frase() {
+    var p = st.params, n = hasDecl() ? ' magnético' : ' verdadeiro', t = '';
+    if (result.wind !== null) t += 'Resultante ' + fala3(result.wind) + n + '. ';
+    t += 'Lançamento ' + MODE_FALA[p.hdgMode] + ', eixo de entrada ' + fala3(result.hdg) + n;
+    if (p.hdgMode === 'cone') t += ', vento entrando pela ' + (p.coneSide === 'E' ? 'esquerda' : 'direita');
+    return t + '. ' + psText(result, p.hdgMode, true) + '.';
+  }
+
+  function renderPedida() {
+    var p = st.params, list = $('pedList');
+    list.innerHTML = '';
+    VARIANTS.forEach(function (v) {
+      var r = isSel(v) ? result : H.compute(calcParams({ hdgMode: v.mode, coneSide: v.side }), st.layers);
+      if (r.errors.length) return;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ped-row';
+      b.setAttribute('aria-pressed', isSel(v) ? 'true' : 'false');
+      b.innerHTML = '<span class="ped-k"></span><span class="ped-v"></span><span class="ped-ps"></span>';
+      b.children[0].textContent = MODE_NAME[v.mode] + (v.mode === 'cone' ? (v.side === 'E' ? ' · vento pela esquerda' : ' · vento pela direita') : '');
+      b.children[1].textContent = 'eixo ' + degM(r.hdg);
+      b.children[2].textContent = psText(r, v.mode);
+      b.addEventListener('click', function () {
+        p.hdgMode = v.mode;
+        if (v.mode === 'cone') p.coneSide = v.side;
+        save(); renderParams(); update();
+      });
+      list.appendChild(b);
+    });
+    $('pedRes').textContent = 'Resultante ' + (result.wind === null ? '– (vento calmo)' : degM(result.wind)) +
+      ' · PS a ' + m10(result.dist) + ' m do alvo, rumo ' + degM(result.brg);
+    $('sTipo').textContent = MODE_NAME[p.hdgMode] + (p.hdgMode === 'cone' ? (p.coneSide === 'E' ? ' (vento pela esq.)' : ' (vento pela dir.)') : '') + ' · eixo de entrada';
+    $('sHdg').textContent = degM(result.hdg);
+    $('sPs').textContent = psText(result, p.hdgMode);
+    $('pedFrase').textContent = frase();
+    $('pedida').hidden = false;
+  }
+  $('pedCopy').addEventListener('click', function () {
+    var btn = $('pedCopy'), txt = $('pedFrase').textContent;
+    var done = function () { btn.textContent = 'Copiado'; setTimeout(function () { btn.textContent = 'Copiar pedida'; }, 2000); };
+    if (navigator.clipboard) navigator.clipboard.writeText(txt).then(done, function () { flash(txt); });
+    else flash(txt);
+  });
+
+  // Resumo de cada seção, para ler com ela fechada
+  function renderSecValues() {
+    var p = st.params;
+    $('vModo').textContent = MODE_NAME[p.hdgMode] + (p.hdgMode === 'cone' ? (p.coneSide === 'E' ? ' · esq.' : ' · dir.') : '');
+    var filled = st.layers.filter(function (L) { return isFinite(L.dir) && isFinite(L.spd); }).length;
+    $('vVentos').textContent = filled + ' de ' + st.layers.length + ' camadas';
+    $('vSalto').textContent = (isFinite(p.exit) ? fmt(p.exit) : '–') + ' / ' + (isFinite(p.open) ? fmt(p.open) : '–') + ' ft · ' +
+      (hasDecl() ? 'decl. ' + fmt(p.decl, p.decl % 1 ? 1 : 0) + '° ' + p.declSide : 'sem declinação');
+  }
 
   // ---------- cálculo e resumo ----------
   var transient = null;
@@ -321,14 +414,16 @@
     var list = [];
     if (transient) list.push(transient);
     if (result) list = list.concat(result.errors.length ? result.errors : result.warns);
+    if (result && !result.errors.length && !hasDecl()) list.push('Eixo em norte VERDADEIRO: falta a declinação magnética (seção Salto).');
     list.forEach(function (m) { var d = document.createElement('div'); d.className = 'msg'; d.textContent = m; box.appendChild(d); });
   }
 
   function update() {
     var p = st.params;
     var allEmpty = st.layers.every(function (L) { return !isFinite(L.dir) && !isFinite(L.spd); });
-    result = allEmpty ? { errors: ['Preencha os ventos por camada na aba Ventos.'] } : H.compute(p, st.layers);
+    result = allEmpty ? { errors: ['Preencha os ventos por camada na seção Ventos.'] } : H.compute(calcParams(), st.layers);
     renderMsgs();
+    renderSecValues();
 
     var tas = H.tasFromIas(p.ias, p.exit);
     var tot = 2 * (p.circAfter + p.circFinal * 60) + 2 * p.circTurn;
@@ -340,13 +435,14 @@
       : '–';
 
     if (result.errors.length) {
-      $('sDist').textContent = '–'; $('sBrg').textContent = '–'; $('sHdg').textContent = '–';
+      $('sTipo').textContent = 'Eixo de entrada';
+      $('sHdg').textContent = '–';
+      $('sPs').textContent = allEmpty ? 'preencha os ventos' : 'cálculo incompleto';
+      $('pedida').hidden = true;
       $('sCoords').textContent = st.pid ? 'Coordenadas do PS aparecem quando o cálculo estiver completo.' : 'Marque o alvo para ver as coordenadas do PS.';
       $('calcRows').innerHTML = '';
     } else {
-      $('sDist').textContent = fmt(result.dist) + ' m';
-      $('sBrg').textContent = deg3(result.brg);
-      $('sHdg').textContent = deg3(result.hdg);
+      renderPedida();
       renderCoords();
       renderCalc();
     }
@@ -387,9 +483,9 @@
         '<td>' + fmt(q.D, 1) + '</td><td>' + fmt(q.x, 1) + '</td><td>' + fmt(q.y, 1) + '</td></tr>';
     });
     if (result.ft > 0.05) {
-      html += '<tr><td colspan="3">Projeção à frente</td><td>proa ' + deg3(result.hdg) + '</td><td></td><td></td><td>' + fmt(result.ft, 1) + '</td><td>' + fmt(result.fx, 1) + '</td><td>' + fmt(result.fy, 1) + '</td></tr>';
+      html += '<tr><td colspan="3">Projeção à frente</td><td>proa ' + deg3(result.hdg) + ' V</td><td></td><td></td><td>' + fmt(result.ft, 1) + '</td><td>' + fmt(result.fx, 1) + '</td><td>' + fmt(result.fy, 1) + '</td></tr>';
     }
-    html += '<tr class="tot"><td colspan="6">PS: ' + fmt(result.dist) + ' m, rumo ' + deg3(result.brg) + '</td><td></td><td>' + fmt(result.X, 1) + '</td><td>' + fmt(result.Y, 1) + '</td></tr>';
+    html += '<tr class="tot"><td colspan="6">PS: ' + fmt(result.dist) + ' m, rumo ' + deg3(result.brg) + ' V</td><td></td><td>' + fmt(result.X, 1) + '</td><td>' + fmt(result.Y, 1) + '</td></tr>';
     $('calcRows').innerHTML = html;
   }
 
@@ -469,11 +565,12 @@
     var set = function (id, t) { $(id).textContent = t; };
     set('nAcc', me ? '±' + fmt(me.acc) + ' m' : '–');
     set('nGs', gs !== null ? fmt(gs / 0.514444) + ' kt' : '–');
-    set('nTrk', (trk !== null ? deg3(trk) : '–') + ' / ' + (result && !result.errors.length ? deg3(result.hdg) : '–'));
+    set('nTrk', (trk !== null ? degM(trk) : '–') + ' / ' + (result && !result.errors.length ? degM(result.hdg) : '–'));
     if (!me || !st.pid || !result || result.errors.length) {
+      $('vNav').textContent = watchId === null ? 'GPS desligado' : 'aguardando';
       box.setAttribute('data-state', 'idle');
       set('nEta', '–:–'); set('nAlong', '–'); set('nCross', '–'); set('nBrg', '–');
-      set('nState', !st.pid ? 'Marque o alvo na aba Salto ou no mapa.'
+      set('nState', !st.pid ? 'Marque o alvo na seção Salto ou no mapa.'
         : (!result || result.errors.length) ? 'Complete os ventos para calcular o PS.'
         : watchId === null ? 'Ligue o GPS para navegar até o PS.' : 'Aguardando sinal do GPS…');
       return;
@@ -482,7 +579,7 @@
     var n = H.nav(pos, { x: result.X, y: result.Y }, result.hdg, gs || 0);
     set('nAlong', (n.along >= 0 ? '' : '−') + fmt(Math.abs(n.along)) + ' m');
     set('nCross', Math.abs(n.cross) < 15 ? 'no eixo' : fmt(Math.abs(n.cross)) + ' m à ' + (n.cross > 0 ? 'direita' : 'esquerda'));
-    set('nBrg', deg3(n.brg) + ' · ' + fmt(n.direct) + ' m');
+    set('nBrg', degM(n.brg) + ' · ' + fmt(n.direct) + ' m');
     var state, msg;
     if (n.along < 0) {
       state = 'past'; set('nEta', '0:00'); msg = 'PS ultrapassado há ' + fmt(-n.along) + ' m';
@@ -496,6 +593,7 @@
     }
     box.setAttribute('data-state', state);
     set('nState', msg);
+    $('vNav').textContent = (n.eta !== null && n.along >= 0 ? mmss(n.eta) + ' · ' : '') + msg;
   }
 
   // Tela ligada enquanto o GPS estiver ativo

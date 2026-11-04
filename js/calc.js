@@ -18,6 +18,7 @@
   function bearing(x, y) {
     return (Math.atan2(x, y) / RAD + 360) % 360;
   }
+  function norm(a) { return ((a % 360) + 360) % 360; }
 
   // Velocidade verdadeira aproximada: +2% por 1.000 ft
   function tasFromIas(iasKt, altFt) {
@@ -37,6 +38,7 @@
     ['kff', 'kva', 'ias', 'ftSec'].forEach(function (k) {
       if (!isFinite(p[k]) || p[k] < 0) errors.push('Preencha todos os dados do salto com valores válidos.');
     });
+    if (isFinite(p.decl) && Math.abs(p.decl) > 60) errors.push('A declinação magnética precisa ficar entre 0° e 60°.');
     if (p.hdgMode === 'manual' && !(isFinite(p.hdg) && p.hdg >= 0 && p.hdg <= 360)) {
       errors.push('A proa manual precisa ficar entre 0° e 360°.');
     }
@@ -103,17 +105,30 @@
       hdg = Math.hypot(ex, ey) > 1 ? bearing(ex, ey) : 0;
     }
 
+    // Eixo que o piloto voa: proa magnética arredondada a 10°, convertida de volta para verdadeiro.
+    // decl: declinação magnética, + leste e − oeste. Magnético = verdadeiro − declinação.
+    var decl = isFinite(p.decl) ? p.decl : 0;
+    var hdgExact = hdg;
+    if (p.round10 && p.hdgMode !== 'manual') {
+      var magR = (Math.round(norm(hdg - decl) / 10) * 10) % 360;
+      hdg = norm(magR + decl);
+    }
+
     var tas = tasFromIas(p.ias, p.exit);
     var ft = tas * KT * p.ftSec;
-    var fx = -ft * Math.sin(hdg * RAD);
-    var fy = -ft * Math.cos(hdg * RAD);
+    var ux = Math.sin(hdg * RAD), uy = Math.cos(hdg * RAD);
+    var fx = -ft * ux;
+    var fy = -ft * uy;
     var X = ex + fx;
     var Y = ey + fy;
 
     return {
       errors: [], warns: warns, rows: rows, ff: ff, va: va,
-      exit: { x: ex, y: ey }, hdg: hdg, tas: tas, ft: ft, fx: fx, fy: fy,
-      X: X, Y: Y, dist: Math.hypot(X, Y), brg: bearing(X, Y)
+      exit: { x: ex, y: ey }, hdg: hdg, hdgExact: hdgExact, decl: decl, tas: tas, ft: ft, fx: fx, fy: fy,
+      X: X, Y: Y, dist: Math.hypot(X, Y), brg: bearing(X, Y),
+      wind: Math.hypot(ex, ey) > 1 ? bearing(ex, ey) : null,   // de onde vem a resultante (verdadeiro)
+      along: X * ux + Y * uy,   // + = PS depois do alvo no sentido de voo; − = antes
+      side: X * uy - Y * ux     // + = PS à direita do eixo que passa pelo alvo (visto da aeronave)
     };
   }
 
@@ -171,7 +186,7 @@
   }
 
   root.HALO = {
-    compute: compute, bearing: bearing, tasFromIas: tasFromIas,
+    compute: compute, bearing: bearing, norm: norm, tasFromIas: tasFromIas,
     offset: offset, toXY: toXY, nav: nav, utm: utm, dms: dms
   };
 })(typeof window !== 'undefined' ? window : globalThis);

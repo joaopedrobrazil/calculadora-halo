@@ -1,5 +1,5 @@
 // Service worker: app funciona offline e guarda os pedaços de mapa já visualizados.
-var APP_CACHE = 'halo-app-v6';
+var APP_CACHE = 'halo-app-v7';
 var TILE_CACHE = 'halo-tiles-v1';
 var MAX_TILES = 3000;
 var APP_FILES = [

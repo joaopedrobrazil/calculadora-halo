@@ -37,8 +37,31 @@
 
     <section class="sheet" id="sheet">
       <div class="grip sheet-handle" id="grip" aria-hidden="true"><span></span></div>
+      <div class="summary sheet-handle" id="summary" aria-live="polite">
+        <div class="sum-main">
+          <div class="kv"><span class="lbl" id="sTipo">Eixo de entrada</span><span class="big" id="sHdg">–</span></div>
+          <div class="kv kv-ps"><span class="mid" id="sPs">–</span></div>
+        </div>
+        <div id="msgs"></div>
+        <div class="pedida" id="pedida" hidden>
+          <span class="lbl">Pedida ao piloto</span>
+          <div class="ped-res" id="pedRes"></div>
+          <div class="ped-list" id="pedList"></div>
+          <p class="ped-frase" id="pedFrase"></p>
+          <div class="row-actions">
+            <button class="btn small" id="pedCopy" type="button">Copiar pedida</button>
+          </div>
+        </div>
+        <details class="coords">
+          <summary>Coordenadas do PS</summary>
+          <div class="sum-coords" id="sCoords">Marque o alvo para ver as coordenadas do PS.</div>
+        </details>
+      </div>
+
+      <details class="sec" id="sec-modo">
+        <summary><span class="sec-t">Tipo de lançamento</span><span class="sec-v" id="vModo"></span></summary>
       <div class="mode">
-        <span class="lbl" id="modeLbl">Tipo de lançamento · escolha do MSL</span>
+        <span class="lbl" id="modeLbl">Escolha do MSL</span>
         <div class="seg" role="radiogroup" aria-labelledby="modeLbl">
           <button type="button" role="radio" data-mode="nariz" aria-checked="true">De nariz<small>contra o vento</small></button>
           <button type="button" role="radio" data-mode="cauda" aria-checked="false">De cauda<small>a favor do vento</small></button>
@@ -53,25 +76,12 @@
         </div>
         <p class="note" id="modeNote"></p>
       </div>
-
-      <div class="summary sheet-handle" id="summary" aria-live="polite">
-        <div class="sum-main">
-          <div class="kv"><span class="lbl">PS a partir do alvo</span><span class="big" id="sDist">–</span></div>
-          <div class="kv"><span class="lbl">Rumo</span><span class="big" id="sBrg">–</span></div>
-          <div class="kv"><span class="lbl">Proa de lançamento</span><span class="mid" id="sHdg">–</span></div>
-        </div>
-        <div class="sum-coords" id="sCoords">Marque o alvo para ver as coordenadas do PS.</div>
-        <div id="msgs"></div>
-      </div>
-
-      <nav class="tabs sheet-handle" role="tablist">
-        <button role="tab" id="tab-ventos" aria-selected="true" aria-controls="pane-ventos" type="button">Ventos</button>
-        <button role="tab" id="tab-salto" aria-selected="false" aria-controls="pane-salto" type="button">Salto</button>
-        <button role="tab" id="tab-nav" aria-selected="false" aria-controls="pane-nav" type="button">Navegação</button>
-      </nav>
+      </details>
 
       <!-- VENTOS -->
-      <div class="pane" id="pane-ventos" role="tabpanel" aria-labelledby="tab-ventos">
+      <details class="sec" id="sec-ventos" open>
+        <summary><span class="sec-t">Ventos</span><span class="sec-v" id="vVentos"></span></summary>
+      <div class="pane" id="pane-ventos">
         <p class="note">Direção de onde o vento <b>vem</b> (°) e velocidade (kt). Cada leitura vale até a metade da distância às leituras vizinhas.</p>
         <table class="winds">
           <thead><tr><th scope="col">Altitude (ft)</th><th scope="col">Direção (°)</th><th scope="col">Vel. (kt)</th><th scope="col"><span class="sr">Remover</span></th></tr></thead>
@@ -93,9 +103,12 @@ Distância = √(ΣX² + ΣY²)     Rumo = atan2(ΣX, ΣY)</pre>
           </div>
         </details>
       </div>
+      </details>
 
       <!-- SALTO -->
-      <div class="pane" id="pane-salto" role="tabpanel" aria-labelledby="tab-salto" hidden>
+      <details class="sec" id="sec-salto">
+        <summary><span class="sec-t">Salto</span><span class="sec-v" id="vSalto"></span></summary>
+      <div class="pane" id="pane-salto">
         <div class="group">
           <h2>Alvo</h2>
           <div class="fields">
@@ -106,6 +119,21 @@ Distância = √(ΣX² + ΣY²)     Rumo = atan2(ΣX, ΣY)</pre>
             <button class="btn" id="pidHere" type="button">Alvo na minha posição</button>
             <button class="btn" id="pidMark2" type="button">Marcar no mapa</button>
           </div>
+        </div>
+
+        <div class="group">
+          <h2>Norte magnético</h2>
+          <div class="fields">
+            <div class="field"><label for="decl">Declinação (°)</label><input id="decl" type="number" step="0.5" min="0" max="60" inputmode="decimal" placeholder="ex.: 22"></div>
+            <div class="field"><label for="declSide">Sentido</label>
+              <select id="declSide">
+                <option value="W">Oeste (W)</option>
+                <option value="E">Leste (E)</option>
+              </select>
+            </div>
+          </div>
+          <label class="check"><input type="checkbox" id="exact"> Eixo exato (estudo): sem arredondar a 10°</label>
+          <p class="note">Os ventos entram em norte verdadeiro. A pedida sai em magnético, com o eixo arredondado a 10°, e o PS é calculado com esse eixo. No Brasil a declinação é Oeste.</p>
         </div>
 
         <div class="group">
@@ -156,9 +184,12 @@ Distância = √(ΣX² + ΣY²)     Rumo = atan2(ΣX, ΣY)</pre>
           <button class="btn" id="resetParams" type="button">Restaurar padrões</button>
         </div>
       </div>
+      </details>
 
       <!-- NAVEGAÇÃO -->
-      <div class="pane" id="pane-nav" role="tabpanel" aria-labelledby="tab-nav" hidden>
+      <details class="sec" id="sec-nav">
+        <summary><span class="sec-t">Navegação</span><span class="sec-v" id="vNav"></span></summary>
+      <div class="pane" id="pane-nav">
         <div class="navgrid" id="navBox" data-state="idle">
           <div class="nav-main">
             <span class="lbl">Tempo até o PS</span>
@@ -178,6 +209,7 @@ Distância = √(ΣX² + ΣY²)     Rumo = atan2(ΣX, ΣY)</pre>
         </div>
         <p class="note">O tempo usa a velocidade no solo medida pelo GPS. Dentro da aeronave, mantenha o celular perto de uma janela ou da rampa. A tela fica ligada enquanto o GPS estiver ativo, se o aparelho permitir.</p>
       </div>
+      </details>
 
       <footer class="disclaimer">
         Ferramenta de apoio e estudo. As constantes K são médias e o resultado depende dos ventos informados; não substitui o cálculo e a decisão do Mestre de Salto.

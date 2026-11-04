@@ -168,6 +168,7 @@
       if (DESK.matches) return { right: sheet.offsetWidth + 32, bottom: 0 };
       return { right: 0, bottom: visible() };
     },
-    toPos: function (name) { if (!DESK.matches) animateTo(name, 0); }
+    toPos: function (name) { if (!DESK.matches) animateTo(name, 0); },
+    pos: function () { return DESK.matches ? 'desk' : pos; }
   };
 })(window);
