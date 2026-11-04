@@ -5,9 +5,15 @@
   var $ = function (id) { return document.getElementById(id); };
   var STORE = 'calculadora-halo-v1';
 
-  var DEFAULT_PARAMS = { exit: 12000, open: 4000, pat: 1000, kff: 3, kva: 25, ias: 120, ftSec: 3, hdgMode: 'nariz', hdg: 0, circMin: 4.5, circSide: 'E', circShow: true };
+  var DEFAULT_PARAMS = { exit: 12000, open: 4000, pat: 1000, kff: 3, kva: 25, ias: 120, ftSec: 3, hdgMode: 'nariz', coneSide: 'E', circFinal: 2, circTurn: 25, circAfter: 15, circSide: 'E', circShow: true };
   var DEFAULT_LAYERS = [11000, 9000, 7000, 5000, 3000, 1000].map(function (a) { return { alt: a, dir: NaN, spd: NaN }; });
-  var PARAM_IDS = ['exit', 'open', 'pat', 'kff', 'kva', 'ias', 'ftSec', 'hdg', 'circMin'];
+  var PARAM_IDS = ['exit', 'open', 'pat', 'kff', 'kva', 'ias', 'ftSec', 'circFinal', 'circTurn', 'circAfter'];
+  var MODES = ['nariz', 'cauda', 'cone'];
+  var MODE_NOTES = {
+    nariz: 'A aeronave passa sobre o alvo voando contra o vento. A projeção à frente leva o paraquedista contra o vento, então o PS fica mais perto do alvo.',
+    cauda: 'A aeronave vem a favor do vento em direção ao alvo. A projeção à frente leva o paraquedista para o alvo, então a saída é antecipada: o PS fica mais longe.',
+    cone: 'A aeronave cruza perpendicular à resultante do vento. A projeção à frente desloca o PS para o lado, sem mudar a distância contra o vento.'
+  };
 
   // ---------- estado ----------
   function freshState() {
@@ -19,7 +25,7 @@
       if (s && s.params && Array.isArray(s.layers)) {
         return {
           pid: s.pid && isFinite(s.pid.lat) && isFinite(s.pid.lon) ? s.pid : null,
-          params: (function (pp) { if (['nariz', 'cauda', 'manual'].indexOf(pp.hdgMode) === -1) pp.hdgMode = 'nariz'; return pp; })(Object.assign({}, DEFAULT_PARAMS, s.params)),
+          params: (function (pp) { if (['nariz', 'cauda', 'cone'].indexOf(pp.hdgMode) === -1) pp.hdgMode = 'nariz'; if (pp.coneSide !== 'D') pp.coneSide = 'E'; return pp; })(Object.assign({}, DEFAULT_PARAMS, s.params)),
           layers: s.layers.map(function (L) { return { alt: num(L.alt), dir: num(L.dir), spd: num(L.spd) }; }),
           mapa: s.mapa === 'osm' ? 'osm' : 'sat',
           nomes: s.nomes !== false
@@ -166,19 +172,19 @@
     L.marker(plLL, { icon: icon('mk-pl', 'PS ' + deg3(result.hdg)), zIndexOffset: 900, interactive: false }).addTo(drawLayer);
   }
 
-  // Circuito retangular de duração fixa na velocidade verdadeira de lançamento.
-  // Comprimento L e largura 0,25 L; o PS fica a 70% da reta final, sobrando 30% depois dele.
+  // Circuito retangular na velocidade verdadeira de lançamento:
+  // final até o PS, reta após o PS, través e base com o mesmo tempo, perna do vento paralela à final.
   function circuit() {
     var p = st.params;
-    if (!p.circShow || !(p.circMin > 0) || !result || result.errors.length) return null;
+    if (!p.circShow || !(p.circFinal > 0) || !(p.circTurn > 0) || !(p.circAfter >= 0) || !result || result.errors.length) return null;
     var v = result.tas * 0.514444;
     if (!(v > 0)) return null;
-    var total = v * p.circMin * 60, Lr = total / 2.5, W = 0.25 * Lr;
+    var F = v * p.circFinal * 60, O = v * p.circAfter, Lr = F + O, W = v * p.circTurn;
     var h = result.hdg * Math.PI / 180, u = { x: Math.sin(h), y: Math.cos(h) };
     var n = p.circSide === 'D' ? { x: u.y, y: -u.x } : { x: -u.y, y: u.x };
     var P = { x: result.X, y: result.Y };
     var add = function (a, b, k) { return { x: a.x + b.x * k, y: a.y + b.y * k }; };
-    var A = add(P, u, 0.3 * Lr), B = add(A, n, W), C = add(B, u, -Lr), D = add(C, n, -W);
+    var A = add(P, u, O), B = add(A, n, W), C = add(B, u, -Lr), D = add(C, n, -W);
     var mid = function (a, b) { return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; };
     var hd = function (a, b) { return H.bearing(b.x - a.x, b.y - a.y); };
     return {
@@ -187,7 +193,7 @@
         { name: 'Través', mid: mid(A, B), hdg: hd(A, B), sec: W / v },
         { name: 'Perna do vento', mid: mid(B, C), hdg: hd(B, C), sec: Lr / v },
         { name: 'Base', mid: mid(C, D), hdg: hd(C, D), sec: W / v },
-        { name: 'Final', mid: mid(D, P), hdg: hd(D, P), sec: 0.7 * Lr / v }
+        { name: 'Final', mid: mid(D, P), hdg: hd(D, P), sec: F / v }
       ]
     };
   }
@@ -241,8 +247,12 @@
   // ---------- parâmetros ----------
   function renderParams() {
     PARAM_IDS.forEach(function (id) { $(id).value = isFinite(st.params[id]) ? st.params[id] : ''; });
-    $('hdgMode').value = st.params.hdgMode;
-    $('hdgField').hidden = st.params.hdgMode !== 'manual';
+    document.querySelectorAll('.seg [data-mode]').forEach(function (b) {
+      b.setAttribute('aria-checked', b.getAttribute('data-mode') === st.params.hdgMode ? 'true' : 'false');
+    });
+    $('coneSideBox').hidden = st.params.hdgMode !== 'cone';
+    $('coneSide').value = st.params.coneSide;
+    $('modeNote').textContent = MODE_NOTES[st.params.hdgMode];
     $('circSide').value = st.params.circSide;
     $('circShow').checked = !!st.params.circShow;
     syncPidInputs();
@@ -250,11 +260,10 @@
   PARAM_IDS.forEach(function (id) {
     $(id).addEventListener('input', function () { st.params[id] = num($(id).value); save(); update(); });
   });
-  $('hdgMode').addEventListener('change', function () {
-    st.params.hdgMode = $('hdgMode').value;
-    if (st.params.hdgMode === 'manual' && !isFinite(st.params.hdg) && result && !result.errors.length) st.params.hdg = Math.round(result.hdg);
-    save(); renderParams(); update();
+  document.querySelectorAll('.seg [data-mode]').forEach(function (b) {
+    b.addEventListener('click', function () { st.params.hdgMode = b.getAttribute('data-mode'); save(); renderParams(); update(); });
   });
+  $('coneSide').addEventListener('change', function () { st.params.coneSide = $('coneSide').value; save(); update(); });
   $('circSide').addEventListener('change', function () { st.params.circSide = $('circSide').value; save(); update(); });
   $('circShow').addEventListener('change', function () { st.params.circShow = $('circShow').checked; save(); update(); });
   $('resetParams').addEventListener('click', function () {
@@ -311,6 +320,10 @@
     renderMsgs();
 
     var tas = H.tasFromIas(p.ias, p.exit);
+    var tot = 2 * (p.circAfter + p.circFinal * 60) + 2 * p.circTurn;
+    $('circInfo').textContent = isFinite(tot) && tot > 0 && isFinite(tas)
+      ? 'Circuito completo ≈ ' + mmss(tot) + ' · final de ' + fmt(tas * 0.514444 * p.circFinal * 60 / 1000, 1) + ' km'
+      : '–';
     $('ftInfo').textContent = isFinite(tas) && isFinite(p.ftSec)
       ? 'TAS ≈ ' + fmt(tas) + ' kt → ' + fmt(tas * 0.514444 * p.ftSec) + ' m'
       : '–';

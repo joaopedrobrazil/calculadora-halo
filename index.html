@@ -36,6 +36,23 @@
     </div>
 
     <section class="sheet">
+      <div class="mode">
+        <span class="lbl" id="modeLbl">Tipo de lançamento · escolha do MSL</span>
+        <div class="seg" role="radiogroup" aria-labelledby="modeLbl">
+          <button type="button" role="radio" data-mode="nariz" aria-checked="true">De nariz<small>contra o vento</small></button>
+          <button type="button" role="radio" data-mode="cauda" aria-checked="false">De cauda<small>a favor do vento</small></button>
+          <button type="button" role="radio" data-mode="cone" aria-checked="false">Boca do cone<small>perpendicular ao vento</small></button>
+        </div>
+        <div class="cone-side" id="coneSideBox" hidden>
+          <label for="coneSide">Vento entrando</label>
+          <select id="coneSide">
+            <option value="E">pela esquerda da aeronave</option>
+            <option value="D">pela direita da aeronave</option>
+          </select>
+        </div>
+        <p class="note" id="modeNote"></p>
+      </div>
+
       <div class="summary" id="summary" aria-live="polite">
         <div class="sum-main">
           <div class="kv"><span class="lbl">PS a partir do alvo</span><span class="big" id="sDist">–</span></div>
@@ -112,23 +129,16 @@ Distância = √(ΣX² + ΣY²)     Rumo = atan2(ΣX, ΣY)</pre>
           <div class="fields">
             <div class="field"><label for="ias">Velocidade de lançamento (kt IAS)</label><input id="ias" type="number" step="5" inputmode="numeric"></div>
             <div class="field"><label for="ftSec">Projeção à frente (s)</label><input id="ftSec" type="number" step="0.5" inputmode="decimal"><small id="ftInfo">–</small></div>
-            <div class="field"><label for="hdgMode">Proa de lançamento</label>
-              <select id="hdgMode">
-                <option value="nariz">De nariz (contra o vento)</option>
-                <option value="cauda">De cauda (a favor do vento)</option>
-                <option value="manual">Manual</option>
-              </select>
-            </div>
-            <div class="field" id="hdgField"><label for="hdg">Proa manual (°)</label><input id="hdg" type="number" step="1" min="0" max="360" inputmode="numeric"></div>
           </div>
-          <p class="note">De nariz: a aeronave passa sobre o alvo voando contra o vento e lança no PS. De cauda: vem do lado do vento em direção ao alvo.</p>
           <p class="note">A projeção à frente usa a velocidade verdadeira na altitude de saída (+2% por 1.000 ft) multiplicada pelo tempo informado. Ajuste o tempo pela tabela da aeronave.</p>
         </div>
 
         <div class="group">
           <h2>Circuito da aeronave</h2>
           <div class="fields">
-            <div class="field"><label for="circMin">Duração do circuito (min)</label><input id="circMin" type="number" step="0.5" min="1" inputmode="decimal"></div>
+            <div class="field"><label for="circFinal">Reta final até o PS (min)</label><input id="circFinal" type="number" step="0.5" min="0.5" inputmode="decimal"></div>
+            <div class="field"><label for="circTurn">Través e base (s cada)</label><input id="circTurn" type="number" step="5" min="5" inputmode="numeric"></div>
+            <div class="field"><label for="circAfter">Reta após o PS (s)</label><input id="circAfter" type="number" step="5" min="0" inputmode="numeric"></div>
             <div class="field"><label for="circSide">Curvas</label>
               <select id="circSide">
                 <option value="E">Pela esquerda</option>
@@ -137,7 +147,8 @@ Distância = √(ΣX² + ΣY²)     Rumo = atan2(ΣX, ΣY)</pre>
             </div>
           </div>
           <label class="check"><input type="checkbox" id="circShow"> Mostrar circuito no mapa</label>
-          <p class="note">Tracejado previsto: través, perna do vento, base e final até o PS, na velocidade verdadeira de lançamento e sem correção de vento.</p>
+          <p class="note" id="circInfo">–</p>
+          <p class="note">Tracejado previsto: após o PS, través, perna do vento, base e final até o PS, na velocidade verdadeira de lançamento e sem correção de vento.</p>
         </div>
 
         <div class="row-actions">

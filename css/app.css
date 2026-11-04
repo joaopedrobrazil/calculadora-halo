@@ -94,6 +94,23 @@ h2 { font-family: var(--display); font-weight: 600; font-size: 18px; margin: 0; 
 .sum-coords .copy { align-self: flex-start; margin-top: 4px; }
 .msg { background: var(--warn-bg); color: var(--warn-fg); border-radius: 4px; padding: 8px 10px; font-size: 14px; margin-top: 4px; }
 
+.mode {
+  padding-block: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--line);
+}
+.seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button {
+  display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 4px; border: 0; border-left: 1px solid var(--line);
+  background: var(--bg); color: var(--fg); font: 700 14px var(--body); cursor: pointer; text-align: center;
+}
+.seg button:first-child { border-left: 0; }
+.seg button small { font: 500 11px var(--body); color: var(--muted); }
+.seg button[aria-checked="true"] { background: var(--accent); color: #fff; }
+.seg button[aria-checked="true"] small { color: #fff; opacity: .9; }
+.cone-side { display: flex; align-items: center; gap: 8px; }
+.cone-side label { font-size: 13px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 .tabs { display: flex; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); z-index: 2; }
 .tabs button {
   flex: 1; font: 600 14px var(--body); padding: 11px 6px; background: none; border: 0; color: var(--muted);

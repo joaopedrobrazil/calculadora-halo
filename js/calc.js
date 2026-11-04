@@ -25,7 +25,7 @@
   }
 
   /**
-   * p: { exit, open, pat (ft), kff, kva, ias (kt), ftSec (s), hdgMode: 'nariz'|'cauda'|'manual', hdg (°) }
+   * p: { exit, open, pat (ft), kff, kva, ias (kt), ftSec (s), hdgMode: 'nariz'|'cauda'|'cone'|'manual', coneSide: 'E'|'D', hdg (°) }
    * layers: [{ alt (ft), dir (°, de onde vem), spd (kt) }]
    */
   function compute(p, layers) {
@@ -93,6 +93,11 @@
     } else if (p.hdgMode === 'cauda') {
       // Lançamento de cauda: a aeronave vem do lado do vento e voa em direção ao alvo
       hdg = Math.hypot(ex, ey) > 1 ? bearing(-ex, -ey) : 0;
+    } else if (p.hdgMode === 'cone') {
+      // Boca do cone: perpendicular à resultante do vento.
+      // Vento pela esquerda da aeronave: proa = direção de onde vem o vento + 90°.
+      var w = Math.hypot(ex, ey) > 1 ? bearing(ex, ey) : 0;
+      hdg = (w + (p.coneSide === 'D' ? 270 : 90)) % 360;
     } else {
       // Lançamento de nariz (padrão): a aeronave passa sobre o alvo voando contra o vento
       hdg = Math.hypot(ex, ey) > 1 ? bearing(ex, ey) : 0;
