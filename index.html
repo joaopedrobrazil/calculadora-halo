@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Calculadora HALO</title>
-  <meta name="description" content="Cálculo do ponto de lançamento para salto livre HALO, com mapa e GPS.">
+  <meta name="description" content="Cálculo do ponto de saída para salto livre HALO, com mapa e GPS.">
   <meta name="theme-color" content="#111814">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
@@ -38,11 +38,11 @@
     <section class="sheet">
       <div class="summary" id="summary" aria-live="polite">
         <div class="sum-main">
-          <div class="kv"><span class="lbl">PL a partir do PID</span><span class="big" id="sDist">–</span></div>
+          <div class="kv"><span class="lbl">PS a partir do PID</span><span class="big" id="sDist">–</span></div>
           <div class="kv"><span class="lbl">Rumo</span><span class="big" id="sBrg">–</span></div>
           <div class="kv"><span class="lbl">Proa de lançamento</span><span class="mid" id="sHdg">–</span></div>
         </div>
-        <div class="sum-coords" id="sCoords">Marque o PID para ver as coordenadas do PL.</div>
+        <div class="sum-coords" id="sCoords">Marque o PID para ver as coordenadas do PS.</div>
         <div id="msgs"></div>
       </div>
 
@@ -132,15 +132,15 @@ Distância = √(ΣX² + ΣY²)     Rumo = atan2(ΣX, ΣY)</pre>
       <div class="pane" id="pane-nav" role="tabpanel" aria-labelledby="tab-nav" hidden>
         <div class="navgrid" id="navBox" data-state="idle">
           <div class="nav-main">
-            <span class="lbl">Tempo até o PL</span>
+            <span class="lbl">Tempo até o PS</span>
             <span class="huge" id="nEta">–:–</span>
-            <span class="nav-state" id="nState">Ligue o GPS para navegar até o PL.</span>
+            <span class="nav-state" id="nState">Ligue o GPS para navegar até o PS.</span>
           </div>
           <div class="kv"><span class="lbl">Distância no eixo</span><span class="mid" id="nAlong">–</span></div>
           <div class="kv"><span class="lbl">Desvio do eixo</span><span class="mid" id="nCross">–</span></div>
           <div class="kv"><span class="lbl">Velocidade no solo</span><span class="mid" id="nGs">–</span></div>
           <div class="kv"><span class="lbl">Rumo atual / proa</span><span class="mid" id="nTrk">–</span></div>
-          <div class="kv"><span class="lbl">Rumo direto ao PL</span><span class="mid" id="nBrg">–</span></div>
+          <div class="kv"><span class="lbl">Rumo direto ao PS</span><span class="mid" id="nBrg">–</span></div>
           <div class="kv"><span class="lbl">Precisão do GPS</span><span class="mid" id="nAcc">–</span></div>
         </div>
         <div class="row-actions">

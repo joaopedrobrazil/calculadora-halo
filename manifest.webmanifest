@@ -1,7 +1,7 @@
 {
   "name": "Calculadora HALO",
   "short_name": "HALO",
-  "description": "Cálculo do ponto de lançamento para salto livre HALO, com mapa e GPS.",
+  "description": "Cálculo do ponto de saída para salto livre HALO, com mapa e GPS.",
   "lang": "pt-BR",
   "start_url": "./",
   "scope": "./",

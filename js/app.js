@@ -11,7 +11,7 @@
 
   // ---------- estado ----------
   function freshState() {
-    return { pid: null, params: Object.assign({}, DEFAULT_PARAMS), layers: DEFAULT_LAYERS.map(function (o) { return Object.assign({}, o); }), base: 'osm' };
+    return { pid: null, params: Object.assign({}, DEFAULT_PARAMS), layers: DEFAULT_LAYERS.map(function (o) { return Object.assign({}, o); }), mapa: 'sat', nomes: true };
   }
   function load() {
     try {
@@ -21,7 +21,8 @@
           pid: s.pid && isFinite(s.pid.lat) && isFinite(s.pid.lon) ? s.pid : null,
           params: Object.assign({}, DEFAULT_PARAMS, s.params),
           layers: s.layers.map(function (L) { return { alt: num(L.alt), dir: num(L.dir), spd: num(L.spd) }; }),
-          base: s.base === 'sat' ? 'sat' : 'osm'
+          mapa: s.mapa === 'osm' ? 'osm' : 'sat',
+          nomes: s.nomes !== false
         };
       }
     } catch (e) { /* sem armazenamento */ }
@@ -42,18 +43,24 @@
 
   // ---------- mapa ----------
   var map = L.map('map', { zoomControl: true }).setView([-15.8, -47.9], 4);
+  // Satélite é o padrão: dá noção real do terreno em volta do ponto de saída.
   var bases = {
-    osm: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19, crossOrigin: true, attribution: '&copy; colaboradores do <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    }),
     sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19, crossOrigin: true, attribution: 'Imagens &copy; Esri'
+      maxZoom: 20, maxNativeZoom: 18, crossOrigin: true, attribution: 'Imagens &copy; Esri, Maxar, Earthstar Geographics'
+    }),
+    osm: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 20, maxNativeZoom: 19, crossOrigin: true, attribution: '&copy; colaboradores do <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
     })
   };
-  bases[st.base].addTo(map);
-  L.control.layers({ 'Mapa': bases.osm, 'Satélite': bases.sat }, null, { position: 'topright' }).addTo(map);
+  var nomes = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 20, maxNativeZoom: 18, crossOrigin: true, pane: 'overlayPane'
+  });
+  bases[st.mapa].addTo(map);
+  if (st.nomes) nomes.addTo(map);
+  L.control.layers({ 'Satélite': bases.sat, 'Mapa': bases.osm }, { 'Nomes de lugares': nomes }, { position: 'topright' }).addTo(map);
   L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
-  map.on('baselayerchange', function (e) { st.base = e.layer === bases.sat ? 'sat' : 'osm'; save(); });
+  map.on('baselayerchange', function (e) { st.mapa = e.layer === bases.osm ? 'osm' : 'sat'; save(); });
+  map.on('overlayadd overlayremove', function (e) { if (e.layer === nomes) { st.nomes = e.type === 'overlayadd'; save(); } });
 
   var drawLayer = L.layerGroup().addTo(map);
   var pidMarker = null;
@@ -119,10 +126,10 @@
     if (!result || result.errors.length) return;
 
     var css = getComputedStyle(document.documentElement);
-    var col = { QL: css.getPropertyValue('--ff').trim(), VA: css.getPropertyValue('--va').trim(), FT: css.getPropertyValue('--ftc').trim(), PL: '#f0773a' };
+    var col = { QL: css.getPropertyValue('--ff').trim(), VA: css.getPropertyValue('--va').trim(), FT: css.getPropertyValue('--ftc').trim(), PS: '#f0773a' };
     var ll = function (x, y) { return H.offset(p0.lat, p0.lon, x, y); };
 
-    // polígono de vetores: PID -> camadas -> ponto de saída -> PL
+    // polígono de vetores: PID -> camadas -> fim da projeção à frente -> PS
     var cx = 0, cy = 0;
     result.rows.forEach(function (q) {
       var a = ll(cx, cy); cx += q.x; cy += q.y; var b = ll(cx, cy);
@@ -138,9 +145,9 @@
     var h = result.hdg * Math.PI / 180, ux = Math.sin(h), uy = Math.cos(h);
     var back = ll(result.X - ux * 5000, result.Y - uy * 5000);
     var fwd = ll(result.X + ux * 2000, result.Y + uy * 2000);
-    L.polyline([back, fwd], { color: col.PL, weight: 2, opacity: 0.8, dashArray: '2 8' }).addTo(drawLayer);
+    L.polyline([back, fwd], { color: col.PS, weight: 2, opacity: 0.8, dashArray: '2 8' }).addTo(drawLayer);
 
-    L.marker(plLL, { icon: icon('mk-pl', 'PL ' + deg3(result.hdg)), zIndexOffset: 900, interactive: false }).addTo(drawLayer);
+    L.marker(plLL, { icon: icon('mk-pl', 'PS ' + deg3(result.hdg)), zIndexOffset: 900, interactive: false }).addTo(drawLayer);
   }
 
   // ---------- ventos ----------
@@ -264,7 +271,7 @@
 
     if (result.errors.length) {
       $('sDist').textContent = '–'; $('sBrg').textContent = '–'; $('sHdg').textContent = '–';
-      $('sCoords').textContent = st.pid ? 'Coordenadas do PL aparecem quando o cálculo estiver completo.' : 'Marque o PID para ver as coordenadas do PL.';
+      $('sCoords').textContent = st.pid ? 'Coordenadas do PS aparecem quando o cálculo estiver completo.' : 'Marque o PID para ver as coordenadas do PS.';
       $('calcRows').innerHTML = '';
     } else {
       $('sDist').textContent = fmt(result.dist) + ' m';
@@ -280,20 +287,20 @@
   function renderCoords() {
     var box = $('sCoords');
     box.innerHTML = '';
-    if (!st.pid) { box.textContent = 'Marque o PID para ver as coordenadas do PL.'; return; }
+    if (!st.pid) { box.textContent = 'Marque o PID para ver as coordenadas do PS.'; return; }
     var pl = H.offset(st.pid.lat, st.pid.lon, result.X, result.Y);
     var u = H.utm(pl[0], pl[1]);
     var lines = [
-      'PL  ' + pl[0].toFixed(5) + ', ' + pl[1].toFixed(5),
+      'PS  ' + pl[0].toFixed(5) + ', ' + pl[1].toFixed(5),
       '    ' + H.dms(pl[0], 'N', 'S') + '  ' + H.dms(pl[1], 'E', 'W'),
       '    UTM ' + u.zone + u.band + '  ' + Math.round(u.E) + ' E  ' + Math.round(u.N) + ' N'
     ];
     lines.forEach(function (t) { var d = document.createElement('span'); d.textContent = t; box.appendChild(d); });
     var btn = document.createElement('button');
-    btn.className = 'btn small copy'; btn.type = 'button'; btn.textContent = 'Copiar coordenadas do PL';
+    btn.className = 'btn small copy'; btn.type = 'button'; btn.textContent = 'Copiar coordenadas do PS';
     btn.addEventListener('click', function () {
       var txt = pl[0].toFixed(6) + ', ' + pl[1].toFixed(6);
-      var done = function () { btn.textContent = 'Copiado'; setTimeout(function () { btn.textContent = 'Copiar coordenadas do PL'; }, 2000); };
+      var done = function () { btn.textContent = 'Copiado'; setTimeout(function () { btn.textContent = 'Copiar coordenadas do PS'; }, 2000); };
       if (navigator.clipboard) navigator.clipboard.writeText(txt).then(done, function () { flash(txt); });
       else flash(txt);
     });
@@ -312,7 +319,7 @@
     if (result.ft > 0.05) {
       html += '<tr><td colspan="3">Projeção à frente</td><td>proa ' + deg3(result.hdg) + '</td><td></td><td></td><td>' + fmt(result.ft, 1) + '</td><td>' + fmt(result.fx, 1) + '</td><td>' + fmt(result.fy, 1) + '</td></tr>';
     }
-    html += '<tr class="tot"><td colspan="6">PL: ' + fmt(result.dist) + ' m, rumo ' + deg3(result.brg) + '</td><td></td><td>' + fmt(result.X, 1) + '</td><td>' + fmt(result.Y, 1) + '</td></tr>';
+    html += '<tr class="tot"><td colspan="6">PS: ' + fmt(result.dist) + ' m, rumo ' + deg3(result.brg) + '</td><td></td><td>' + fmt(result.X, 1) + '</td><td>' + fmt(result.Y, 1) + '</td></tr>';
     $('calcRows').innerHTML = html;
   }
 
@@ -397,8 +404,8 @@
       box.setAttribute('data-state', 'idle');
       set('nEta', '–:–'); set('nAlong', '–'); set('nCross', '–'); set('nBrg', '–');
       set('nState', !st.pid ? 'Marque o PID na aba Salto ou no mapa.'
-        : (!result || result.errors.length) ? 'Complete os ventos para calcular o PL.'
-        : watchId === null ? 'Ligue o GPS para navegar até o PL.' : 'Aguardando sinal do GPS…');
+        : (!result || result.errors.length) ? 'Complete os ventos para calcular o PS.'
+        : watchId === null ? 'Ligue o GPS para navegar até o PS.' : 'Aguardando sinal do GPS…');
       return;
     }
     var pos = H.toXY(st.pid.lat, st.pid.lon, me.lat, me.lon);
@@ -408,14 +415,14 @@
     set('nBrg', deg3(n.brg) + ' · ' + fmt(n.direct) + ' m');
     var state, msg;
     if (n.along < 0) {
-      state = 'past'; set('nEta', '0:00'); msg = 'PL ultrapassado há ' + fmt(-n.along) + ' m';
+      state = 'past'; set('nEta', '0:00'); msg = 'PS ultrapassado há ' + fmt(-n.along) + ' m';
     } else if (n.eta === null) {
       state = 'idle'; set('nEta', '–:–'); msg = 'Velocidade muito baixa para estimar o tempo.';
     } else {
       set('nEta', mmss(n.eta));
-      if (n.eta <= 5) { state = 'now'; msg = 'Sobre o PL'; }
-      else if (n.eta <= 60) { state = 'near'; msg = 'Aproximando do PL'; }
-      else { state = 'idle'; msg = 'A caminho do PL'; }
+      if (n.eta <= 5) { state = 'now'; msg = 'Sobre o PS'; }
+      else if (n.eta <= 60) { state = 'near'; msg = 'Aproximando do PS'; }
+      else { state = 'idle'; msg = 'A caminho do PS'; }
     }
     box.setAttribute('data-state', state);
     set('nState', msg);

@@ -1,12 +1,12 @@
 /*
- * Núcleo de cálculo do Ponto de Lançamento (PL) para salto HALO.
+ * Núcleo de cálculo do Ponto de Saída (PS) para salto HALO.
  *
  * Método: soma vetorial camada por camada.
  *   D = K × V × A            (m; V em nós, A em milhares de pés)
  *   X = D × sen(direção)     (leste +)
  *   Y = D × cos(direção)     (norte +)
  * A direção é a de onde o vento VEM, então o vetor aponta contra o vento,
- * que é para onde o PL deve ser deslocado a partir do PID.
+ * que é para onde o PS deve ser deslocado a partir do PID.
  */
 (function (root) {
   'use strict';
@@ -117,7 +117,7 @@
     return { x: (lon - lon0) * RAD * R_EARTH * Math.cos(lat0 * RAD), y: (lat - lat0) * RAD * R_EARTH };
   }
 
-  // Navegação até o PL: distância ao longo do eixo, desvio lateral e tempo
+  // Navegação até o PS: distância ao longo do eixo, desvio lateral e tempo
   function nav(pos, pl, hdg, gs) {
     var ux = Math.sin(hdg * RAD), uy = Math.cos(hdg * RAD);
     var dx = pl.x - pos.x, dy = pl.y - pos.y;
