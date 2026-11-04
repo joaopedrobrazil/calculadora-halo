@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Calculadora HALO</title>
+  <meta name="description" content="Cálculo do ponto de lançamento para salto livre HALO, com mapa e GPS.">
+  <meta name="theme-color" content="#111814">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="eyebrow">Salto livre · HALO</span>
+      <h1>Calculadora HALO</h1>
+    </div>
+    <button class="gps-pill" id="gpsBtn" type="button" data-state="off">
+      <span class="dot" aria-hidden="true"></span><span id="gpsLabel">GPS desligado</span>
+    </button>
+  </header>
+
+  <main class="layout">
+    <div class="mapwrap">
+      <div id="map" aria-label="Mapa"></div>
+      <div class="map-tools">
+        <button class="tool" id="markBtn" type="button">Marcar PID no mapa</button>
+        <button class="tool" id="fitBtn" type="button">Enquadrar</button>
+      </div>
+      <div class="map-hint" id="mapHint" hidden></div>
+    </div>
+
+    <section class="sheet">
+      <div class="summary" id="summary" aria-live="polite">
+        <div class="sum-main">
+          <div class="kv"><span class="lbl">PL a partir do PID</span><span class="big" id="sDist">–</span></div>
+          <div class="kv"><span class="lbl">Rumo</span><span class="big" id="sBrg">–</span></div>
+          <div class="kv"><span class="lbl">Proa de lançamento</span><span class="mid" id="sHdg">–</span></div>
+        </div>
+        <div class="sum-coords" id="sCoords">Marque o PID para ver as coordenadas do PL.</div>
+        <div id="msgs"></div>
+      </div>
+
+      <nav class="tabs" role="tablist">
+        <button role="tab" id="tab-ventos" aria-selected="true" aria-controls="pane-ventos" type="button">Ventos</button>
+        <button role="tab" id="tab-salto" aria-selected="false" aria-controls="pane-salto" type="button">Salto</button>
+        <button role="tab" id="tab-nav" aria-selected="false" aria-controls="pane-nav" type="button">Navegação</button>
+      </nav>
+
+      <!-- VENTOS -->
+      <div class="pane" id="pane-ventos" role="tabpanel" aria-labelledby="tab-ventos">
+        <p class="note">Direção de onde o vento <b>vem</b> (°) e velocidade (kt). Cada leitura vale até a metade da distância às leituras vizinhas.</p>
+        <table class="winds">
+          <thead><tr><th scope="col">Altitude (ft)</th><th scope="col">Direção (°)</th><th scope="col">Vel. (kt)</th><th scope="col"><span class="sr">Remover</span></th></tr></thead>
+          <tbody id="windRows"></tbody>
+        </table>
+        <div class="row-actions">
+          <button class="btn" id="addLayer" type="button">Adicionar camada</button>
+          <button class="btn" id="clearWinds" type="button">Zerar ventos</button>
+        </div>
+        <details class="calc">
+          <summary>Memória de cálculo</summary>
+          <pre class="formula">D = K × V × A     X = D × sen(dir)     Y = D × cos(dir)
+Distância = √(ΣX² + ΣY²)     Rumo = atan2(ΣX, ΣY)</pre>
+          <div class="tablewrap">
+            <table class="calc-table">
+              <thead><tr><th>Leitura</th><th>Faixa (ft)</th><th>Fase</th><th>Vento</th><th>K</th><th>A</th><th>D (m)</th><th>X (m)</th><th>Y (m)</th></tr></thead>
+              <tbody id="calcRows"></tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+
+      <!-- SALTO -->
+      <div class="pane" id="pane-salto" role="tabpanel" aria-labelledby="tab-salto" hidden>
+        <div class="group">
+          <h2>Ponto de Impacto Desejado (PID)</h2>
+          <div class="fields">
+            <div class="field"><label for="pidLat">Latitude</label><input id="pidLat" type="number" step="0.00001" inputmode="decimal" placeholder="-22.87500"></div>
+            <div class="field"><label for="pidLon">Longitude</label><input id="pidLon" type="number" step="0.00001" inputmode="decimal" placeholder="-43.38000"></div>
+          </div>
+          <div class="row-actions">
+            <button class="btn" id="pidHere" type="button">PID na minha posição</button>
+            <button class="btn" id="pidMark2" type="button">Marcar no mapa</button>
+          </div>
+        </div>
+
+        <div class="group">
+          <h2>Altitudes</h2>
+          <div class="fields">
+            <div class="field"><label for="exit">Saída (ft)</label><input id="exit" type="number" step="500" inputmode="numeric"></div>
+            <div class="field"><label for="open">Abertura (ft)</label><input id="open" type="number" step="500" inputmode="numeric"></div>
+            <div class="field"><label for="pat">Início do tráfego (ft)</label><input id="pat" type="number" step="100" inputmode="numeric"></div>
+          </div>
+        </div>
+
+        <div class="group">
+          <h2>Constantes</h2>
+          <div class="fields">
+            <div class="field"><label for="kff">K queda livre</label><input id="kff" type="number" step="0.1" inputmode="decimal"></div>
+            <div class="field"><label for="kva">K velame aberto</label><input id="kva" type="number" step="0.5" inputmode="decimal"></div>
+          </div>
+        </div>
+
+        <div class="group">
+          <h2>Aeronave</h2>
+          <div class="fields">
+            <div class="field"><label for="ias">Velocidade de lançamento (kt IAS)</label><input id="ias" type="number" step="5" inputmode="numeric"></div>
+            <div class="field"><label for="ftSec">Projeção à frente (s)</label><input id="ftSec" type="number" step="0.5" inputmode="decimal"><small id="ftInfo">–</small></div>
+            <div class="field"><label for="hdgMode">Proa de lançamento</label>
+              <select id="hdgMode">
+                <option value="auto">Automática (eixo para o PID)</option>
+                <option value="manual">Manual</option>
+              </select>
+            </div>
+            <div class="field" id="hdgField"><label for="hdg">Proa manual (°)</label><input id="hdg" type="number" step="1" min="0" max="360" inputmode="numeric"></div>
+          </div>
+          <p class="note">A projeção à frente usa a velocidade verdadeira na altitude de saída (+2% por 1.000 ft) multiplicada pelo tempo informado. Ajuste o tempo pela tabela da aeronave.</p>
+        </div>
+
+        <div class="row-actions">
+          <button class="btn" id="resetParams" type="button">Restaurar padrões</button>
+        </div>
+      </div>
+
+      <!-- NAVEGAÇÃO -->
+      <div class="pane" id="pane-nav" role="tabpanel" aria-labelledby="tab-nav" hidden>
+        <div class="navgrid" id="navBox" data-state="idle">
+          <div class="nav-main">
+            <span class="lbl">Tempo até o PL</span>
+            <span class="huge" id="nEta">–:–</span>
+            <span class="nav-state" id="nState">Ligue o GPS para navegar até o PL.</span>
+          </div>
+          <div class="kv"><span class="lbl">Distância no eixo</span><span class="mid" id="nAlong">–</span></div>
+          <div class="kv"><span class="lbl">Desvio do eixo</span><span class="mid" id="nCross">–</span></div>
+          <div class="kv"><span class="lbl">Velocidade no solo</span><span class="mid" id="nGs">–</span></div>
+          <div class="kv"><span class="lbl">Rumo atual / proa</span><span class="mid" id="nTrk">–</span></div>
+          <div class="kv"><span class="lbl">Rumo direto ao PL</span><span class="mid" id="nBrg">–</span></div>
+          <div class="kv"><span class="lbl">Precisão do GPS</span><span class="mid" id="nAcc">–</span></div>
+        </div>
+        <div class="row-actions">
+          <button class="btn primary" id="gpsBtn2" type="button">Ligar GPS</button>
+          <button class="btn" id="followBtn" type="button" aria-pressed="false">Seguir minha posição</button>
+        </div>
+        <p class="note">O tempo usa a velocidade no solo medida pelo GPS. Dentro da aeronave, mantenha o celular perto de uma janela ou da rampa. A tela fica ligada enquanto o GPS estiver ativo, se o aparelho permitir.</p>
+      </div>
+
+      <footer class="disclaimer">
+        Ferramenta de apoio e estudo. As constantes K são médias e o resultado depende dos ventos informados; não substitui o cálculo e a decisão do Mestre de Salto.
+        <span id="swStatus"></span>
+      </footer>
+    </section>
+  </main>
+
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="js/calc.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
