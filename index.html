@@ -35,7 +35,8 @@
       <div class="map-hint" id="mapHint" hidden></div>
     </div>
 
-    <section class="sheet">
+    <section class="sheet" id="sheet">
+      <div class="grip sheet-handle" id="grip" aria-hidden="true"><span></span></div>
       <div class="mode">
         <span class="lbl" id="modeLbl">Tipo de lançamento · escolha do MSL</span>
         <div class="seg" role="radiogroup" aria-labelledby="modeLbl">
@@ -53,7 +54,7 @@
         <p class="note" id="modeNote"></p>
       </div>
 
-      <div class="summary" id="summary" aria-live="polite">
+      <div class="summary sheet-handle" id="summary" aria-live="polite">
         <div class="sum-main">
           <div class="kv"><span class="lbl">PS a partir do alvo</span><span class="big" id="sDist">–</span></div>
           <div class="kv"><span class="lbl">Rumo</span><span class="big" id="sBrg">–</span></div>
@@ -63,7 +64,7 @@
         <div id="msgs"></div>
       </div>
 
-      <nav class="tabs" role="tablist">
+      <nav class="tabs sheet-handle" role="tablist">
         <button role="tab" id="tab-ventos" aria-selected="true" aria-controls="pane-ventos" type="button">Ventos</button>
         <button role="tab" id="tab-salto" aria-selected="false" aria-controls="pane-salto" type="button">Salto</button>
         <button role="tab" id="tab-nav" aria-selected="false" aria-controls="pane-nav" type="button">Navegação</button>
@@ -187,6 +188,7 @@ Distância = √(ΣX² + ΣY²)     Rumo = atan2(ΣX, ΣY)</pre>
 
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="js/calc.js"></script>
+  <script src="js/sheet.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

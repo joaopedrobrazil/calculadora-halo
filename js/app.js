@@ -112,9 +112,20 @@
     var pts = [[st.pid.lat, st.pid.lon]];
     if (result && !result.errors.length) pts.push(H.offset(st.pid.lat, st.pid.lon, result.X, result.Y));
     if (me) pts.push([me.lat, me.lon]);
+    var pd = window.HALO_SHEET ? HALO_SHEET.padding() : { right: 0, bottom: 0 };
     if (pts.length === 1) map.setView(pts[0], 15);
-    else map.fitBounds(L.latLngBounds(pts).pad(0.35), { maxZoom: 16 });
+    else map.fitBounds(L.latLngBounds(pts).pad(0.35), { maxZoom: 16, paddingTopLeft: [16, 120], paddingBottomRight: [pd.right + 16, pd.bottom + 16] });
   }
+
+  // Depois que a folha para, o alvo não pode ficar escondido atrás dela
+  function keepTargetVisible() {
+    if (!st.pid || !window.HALO_SHEET) return;
+    var pt = map.latLngToContainerPoint([st.pid.lat, st.pid.lon]);
+    var sz = map.getSize(), pd = HALO_SHEET.padding();
+    var top = 120, bottom = sz.y - pd.bottom - 24;
+    if (pt.y < top || pt.y > bottom) map.panBy([0, pt.y - (top + bottom) / 2], { animate: true });
+  }
+  if (window.HALO_SHEET) HALO_SHEET.onSettle(keepTargetVisible);
 
   function draw() {
     drawLayer.clearLayers();
