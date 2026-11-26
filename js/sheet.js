@@ -2,6 +2,7 @@
  * Folha inferior arrastável sobre o mapa (celular) e cartão flutuante (desktop).
  *
  * Posições de repouso (celular):
+ *   'closed' – painel totalmente recolhido no botão da barra inferior;
  *   'peek' – só o PS, o rumo e a proa;
  *   'half' – metade da tela;
  *   'full' – quase a tela toda (88%).
@@ -13,7 +14,8 @@
   'use strict';
 
   var sheet = document.getElementById('sheet');
-  var summary = document.getElementById('summary');
+  var grip = document.getElementById('grip');
+  var hasDockToggle = grip.classList.contains('sheet-toggle');
   var sumMain = sheet.querySelector('.sum-main');
   var DESK = window.matchMedia('(min-width: 861px)');
   var REDUCE = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -21,7 +23,7 @@
   var ZETA = 0.8, RESP = 0.3, DECEL = 0.998;
   var NEXT = { peek: 'half', half: 'full', full: 'half' };
 
-  var y = 0, v = 0, target = 0, pos = 'half', raf = 0;
+  var y = 0, v = 0, target = 0, pos = hasDockToggle ? 'closed' : 'half', raf = 0;
   var drag = null, justDragged = false;
   var listeners = [];
 
@@ -43,6 +45,15 @@
   function settle(name) {
     pos = name;
     sheet.setAttribute('data-pos', name);
+    if (hasDockToggle) {
+      var expanded = name !== 'closed';
+      var label = expanded ? 'Fechar dados do salto' : 'Abrir dados do salto';
+      grip.setAttribute('aria-expanded', String(expanded));
+      grip.setAttribute('aria-label', label);
+      grip.title = label;
+    } else {
+      grip.setAttribute('aria-label', name === 'full' ? 'Recolher painel' : 'Expandir painel');
+    }
     for (var i = 0; i < listeners.length; i++) listeners[i](name);
   }
 
@@ -75,14 +86,17 @@
   // Ajusta ao tamanho da tela (girar o aparelho, mudar de desktop para celular)
   function layout() {
     cancelAnimationFrame(raf);
+    var returnFocus = !DESK.matches && pos === 'closed' && sheet.contains(document.activeElement);
+    sheet.hidden = !DESK.matches && pos === 'closed';
     if (DESK.matches) {
       sheet.style.transform = '';
       sheet.setAttribute('data-pos', 'desk');
       document.documentElement.style.setProperty('--sheet-vis', '0px');
       return;
     }
-    setY(snaps()[pos]);
+    setY(sheet.hidden ? 0 : snaps()[pos]);
     sheet.setAttribute('data-pos', pos);
+    if (returnFocus) grip.focus({ preventScroll: true });
   }
 
   function onDown(e) {
@@ -95,7 +109,7 @@
   }
 
   function onMove(e) {
-    if (!drag || e.pointerId !== drag.id) return;
+    if (!drag || e.pointerId !== drag.id || sheet.hidden) return;
     if (!drag.active) {
       if (Math.abs(e.clientY - drag.startY) < 8) return;   // limiar: toque continua sendo toque
       drag.active = true;
@@ -122,7 +136,7 @@
     window.removeEventListener('pointercancel', onUp);
     var d = drag;
     drag = null;
-    if (!d.active) return;
+    if (!d.active || sheet.hidden) return;
     justDragged = true;
 
     var first = d.samples[0], last = d.samples[d.samples.length - 1];
@@ -140,16 +154,41 @@
 
   // Toque sem arrasto em um dos handles: cancela o clique que sobra depois de um arrasto
   sheet.addEventListener('click', function (e) {
-    if (justDragged) { justDragged = false; e.stopPropagation(); e.preventDefault(); }
+    if (!justDragged) return;
+    justDragged = false;
+    if (e.detail !== 0) { e.stopPropagation(); e.preventDefault(); }
   }, true);
 
   var handles = sheet.querySelectorAll('.sheet-handle');
   for (var i = 0; i < handles.length; i++) handles[i].addEventListener('pointerdown', onDown);
 
-  // Toque na alça alterna a altura
-  document.getElementById('grip').addEventListener('click', function () {
-    if (DESK.matches) return;
-    animateTo(NEXT[pos] || 'half', 0);
+  function closeSheet() {
+    cancelAnimationFrame(raf);
+    justDragged = false;
+    sheet.hidden = true;
+    setY(0);
+    settle('closed');
+    grip.focus({ preventScroll: true });
+  }
+
+  grip.addEventListener('click', function () {
+    if (DESK.matches || drag) return;
+    if (!hasDockToggle) {
+      animateTo(NEXT[pos] || 'half', 0);
+    } else if (sheet.hidden) {
+      sheet.hidden = false;
+      setY(0);
+      settle('full');
+      sheet.focus({ preventScroll: true });
+    } else {
+      closeSheet();
+    }
+  });
+
+  sheet.addEventListener('keydown', function (event) {
+    if (!hasDockToggle || DESK.matches || event.key !== 'Escape') return;
+    event.preventDefault();
+    closeSheet();
   });
 
   // Campo de texto focado com a folha recolhida: sobe para a metade
@@ -168,7 +207,7 @@
       if (DESK.matches) return { right: sheet.offsetWidth + 32, bottom: 0 };
       return { right: 0, bottom: visible() };
     },
-    toPos: function (name) { if (!DESK.matches) animateTo(name, 0); },
+    toPos: function (name) { if (!DESK.matches && !sheet.hidden) animateTo(name, 0); },
     pos: function () { return DESK.matches ? 'desk' : pos; }
   };
 })(window);

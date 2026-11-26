@@ -13,11 +13,11 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="css/app.css">
+  <script src="js/preferences.js" defer></script>
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
-      <span class="eyebrow">Salto livre · HALO</span>
       <h1>Calculadora HALO</h1>
     </div>
     <button class="gps-pill" id="gpsBtn" type="button" data-state="off">
@@ -28,6 +28,22 @@
   <main class="layout">
     <div class="mapwrap">
       <div id="map" aria-label="Mapa"></div>
+      <details class="map-style" id="mapStyle">
+        <summary class="glass">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+            <path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5" stroke-linejoin="round"/>
+          </svg>
+          <span id="mapStyleLabel">Satélite</span>
+        </summary>
+        <div class="appearance-panel">
+          <fieldset>
+            <legend>Tipo de mapa</legend>
+            <label><input type="radio" name="baseMap" value="sat" checked> Satélite</label>
+            <label><input type="radio" name="baseMap" value="osm"> Mapa de ruas</label>
+          </fieldset>
+          <label><input type="checkbox" id="mapLabels" checked> Nomes de lugares</label>
+        </div>
+      </details>
       <div class="map-tools">
         <button class="tool" id="markBtn" type="button">Marcar alvo no mapa</button>
         <button class="tool" id="fitBtn" type="button">Enquadrar</button>
@@ -35,8 +51,7 @@
       <div class="map-hint" id="mapHint" hidden></div>
     </div>
 
-    <section class="sheet" id="sheet">
-      <div class="grip sheet-handle" id="grip" aria-hidden="true"><span></span></div>
+    <section class="sheet" id="sheet" aria-label="Dados do salto" tabindex="-1">
       <div class="summary sheet-handle" id="summary" aria-live="polite">
         <div class="sum-main">
           <div class="kv"><span class="lbl" id="sTipo">Eixo de entrada</span><span class="big" id="sHdg">–</span></div>
@@ -217,6 +232,38 @@ Distância = √(ΣX² + ΣY²)     Rumo = atan2(ΣX, ΣY)</pre>
       </footer>
     </section>
   </main>
+
+  <div class="control-dock">
+    <button class="glass sheet-toggle" id="grip" type="button" aria-controls="sheet" aria-expanded="false" aria-label="Abrir dados do salto" title="Abrir dados do salto">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+        <rect x="4" y="4" width="16" height="16" rx="2.5"/>
+        <path d="M8 9h8m-8 6h6"/>
+      </svg>
+    </button>
+    <details class="preferences" id="preferences">
+      <summary class="glass">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+          <path d="M4 6h4m4 0h8M4 12h10m4 0h2M4 18h2m4 0h10M8 4v4m10 2v4m-8 2v4"/>
+        </svg>
+        Preferências
+      </summary>
+      <div class="appearance-panel">
+        <label for="appearanceTheme">Tema</label>
+        <select id="appearanceTheme">
+          <option value="system">Sistema</option>
+          <option value="light">Claro</option>
+          <option value="dark">Escuro</option>
+        </select>
+        <label for="appearanceSize">Tamanho do texto</label>
+        <select id="appearanceSize">
+          <option value="normal">Padrão</option>
+          <option value="large">Maior</option>
+          <option value="extra-large">Extra grande</option>
+        </select>
+        <label class="contrast-choice"><input type="checkbox" id="appearanceContrast"> Alto contraste</label>
+      </div>
+    </details>
+  </div>
 
   <script src="vendor/leaflet/leaflet.js"></script>
   <script src="js/calc.js"></script>

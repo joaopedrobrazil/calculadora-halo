@@ -71,6 +71,9 @@
 
   // ---------- mapa ----------
   var map = L.map('map', { zoomControl: true }).setView([-15.8, -47.9], 4);
+  map.zoomControl.options.zoomInTitle = 'Ampliar mapa';
+  map.zoomControl.options.zoomOutTitle = 'Reduzir mapa';
+  map.zoomControl.setPosition('bottomright');
   // Satélite é o padrão: dá noção real do terreno em volta do ponto de saída.
   var bases = {
     sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -85,10 +88,28 @@
   });
   bases[st.mapa].addTo(map);
   if (st.nomes) nomes.addTo(map);
-  L.control.layers({ 'Satélite': bases.sat, 'Mapa': bases.osm }, { 'Nomes de lugares': nomes }, { position: 'topright' }).addTo(map);
   L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
-  map.on('baselayerchange', function (e) { st.mapa = e.layer === bases.osm ? 'osm' : 'sat'; save(); });
-  map.on('overlayadd overlayremove', function (e) { if (e.layer === nomes) { st.nomes = e.type === 'overlayadd'; save(); } });
+
+  var mapStyle = $('mapStyle');
+  if (mapStyle) {
+    var mapLabels = $('mapLabels');
+    var mapStyleLabel = $('mapStyleLabel');
+    mapStyle.querySelector('input[value="' + st.mapa + '"]').checked = true;
+    mapStyleLabel.textContent = st.mapa === 'sat' ? 'Satélite' : 'Mapa de ruas';
+    mapLabels.checked = st.nomes;
+    mapStyle.addEventListener('change', function (e) {
+      if (e.target === mapLabels) {
+        st.nomes = mapLabels.checked;
+        if (st.nomes) nomes.addTo(map); else map.removeLayer(nomes);
+      } else {
+        map.removeLayer(bases[st.mapa]);
+        st.mapa = e.target.value;
+        bases[st.mapa].addTo(map);
+        mapStyleLabel.textContent = e.target.parentElement.textContent.trim();
+      }
+      save();
+    });
+  }
 
   var drawLayer = L.layerGroup().addTo(map);
   var pidMarker = null;

@@ -1,5 +1,5 @@
 // Service worker: app funciona offline e guarda os pedaços de mapa já visualizados.
-var APP_CACHE = 'halo-app-v8';
+var APP_CACHE = 'halo-app-v12';
 var TILE_CACHE = 'halo-tiles-v1';
 var MAX_TILES = 3000;
 var APP_FILES = [
@@ -9,6 +9,7 @@ var APP_FILES = [
   'js/calc.js',
   'js/sheet.js',
   'js/app.js',
+  'js/preferences.js',
   'manifest.webmanifest',
   'icons/icon-192.png',
   'icons/icon-512.png',
@@ -28,7 +29,10 @@ self.addEventListener('install', function (e) {
 
 self.addEventListener('activate', function (e) {
   e.waitUntil(caches.keys().then(function (keys) {
-    return Promise.all(keys.filter(function (k) { return k !== APP_CACHE && k !== TILE_CACHE; }).map(function (k) { return caches.delete(k); }));
+    var oldAppCaches = keys.filter(function (key) {
+      return key !== APP_CACHE && /^halo-app-v\d+$/.test(key);
+    });
+    return Promise.all(oldAppCaches.map(function (key) { return caches.delete(key); }));
   }).then(function () { return self.clients.claim(); }));
 });
 
@@ -62,13 +66,17 @@ self.addEventListener('fetch', function (e) {
   }
 
   // Arquivos do app: responde do cache e atualiza em segundo plano.
-  if (url.origin === self.location.origin) {
+  if (url.href.indexOf(self.registration.scope) === 0) {
     e.respondWith(caches.open(APP_CACHE).then(function (c) {
       return c.match(req, { ignoreSearch: true }).then(function (hit) {
         var net = fetch(req).then(function (res) {
           if (res.ok) c.put(req, res.clone());
           return res;
-        }).catch(function () { return hit || c.match('index.html'); });
+        }).catch(function () {
+          if (hit) return hit;
+          if (req.mode !== 'navigate') return Response.error();
+          return c.match('index.html').then(function (page) { return page || Response.error(); });
+        });
         return hit || net;
       });
     }));
